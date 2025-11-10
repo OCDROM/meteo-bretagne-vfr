@@ -105,6 +105,7 @@
         {% if decoded.base_conditions %}
         <div class="period-card">
             <h4 class="text-info">🌤️ Conditions de base ({{ decoded.base_conditions.period }})</h4>
+            <p class="text-muted"><strong>Période:</strong> {{ decoded.base_conditions.from }} → {{ decoded.base_conditions.to }}</p>
             <p class="text-muted">Ces conditions sont attendues pendant toute la période de validité, sauf durant les modifications temporaires indiquées ci-dessous.</p>
             
             {% if decoded.base_conditions.cavok %}
@@ -191,120 +192,114 @@
         </div>
         {% endif %}
 
-        <!-- TEMPO (conditions temporaires) -->
-        {% if decoded.tempo_periods %}
-        <h3 class="mt-4 text-warning">⚠️ TEMPO - Conditions temporaires</h3>
-        <p class="text-muted">Ces conditions peuvent se produire temporairement (moins de 50% du temps) pendant les périodes indiquées.</p>
+        <!-- Toutes les périodes en ordre chronologique -->
+        {% if decoded.all_periods %}
+        <h3 class="mt-4">📅 Évolution chronologique des conditions</h3>
+        <p class="text-muted">Les modifications prévues sont listées dans l'ordre chronologique ci-dessous.</p>
         
-        {% for tempo in decoded.tempo_periods %}
-        <div class="period-card tempo">
-            <h5>📍 Période: {{ tempo.from }} → {{ tempo.to }}</h5>
-            
-            {% if tempo.wind_dir %}
-            <p><strong>💨 Vent:</strong> {{ tempo.wind_dir }}° à {{ tempo.wind_speed }} kt
-            {% if tempo.wind_gust %}(rafales {{ tempo.wind_gust }} kt){% endif %}</p>
-            {% endif %}
-            
-            {% if tempo.visibility %}
-            <p><strong>👁️ Visibilité:</strong> {{ tempo.visibility }} m ({{ (tempo.visibility / 1000)|round(1) }} km)</p>
-            {% endif %}
-            
-            {% if tempo.phenomena %}
-            <p><strong>🌧️ Phénomènes:</strong>
-            {% for phenom in tempo.phenomena %}
-                <span class="badge bg-warning text-dark">{{ phenom }}</span>
-            {% endfor %}
-            </p>
-            {% endif %}
-            
-            {% if tempo.clouds %}
-            <p><strong>☁️ Nuages:</strong></p>
-            {% for cloud in tempo.clouds %}
-            <div class="cloud-layer">
-                {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
-                {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+        {% for period in decoded.all_periods %}
+            {% if period.type == 'tempo' %}
+            <div class="period-card tempo">
+                <h5>⚠️ TEMPO - Conditions temporaires</h5>
+                <p><strong>📍 Période:</strong> {{ period.from }} → {{ period.to }}</p>
+                <p class="text-muted"><em>Ces conditions peuvent se produire temporairement (moins de 50% du temps)</em></p>
+                
+                {% if period.wind_dir %}
+                <p><strong>💨 Vent:</strong> {{ period.wind_dir }}° à {{ period.wind_speed }} kt
+                {% if period.wind_gust %}(rafales {{ period.wind_gust }} kt){% endif %}</p>
+                {% endif %}
+                
+                {% if period.visibility %}
+                <p><strong>👁️ Visibilité:</strong> {{ period.visibility }} m ({{ (period.visibility / 1000)|round(1) }} km)</p>
+                {% endif %}
+                
+                {% if period.phenomena %}
+                <p><strong>🌧️ Phénomènes:</strong>
+                {% for phenom in period.phenomena %}
+                    <span class="badge bg-warning text-dark">{{ phenom }}</span>
+                {% endfor %}
+                </p>
+                {% endif %}
+                
+                {% if period.clouds %}
+                <p><strong>☁️ Nuages:</strong></p>
+                {% for cloud in period.clouds %}
+                <div class="cloud-layer">
+                    {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                    {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
             </div>
-            {% endfor %}
-            {% endif %}
-        </div>
-        {% endfor %}
-        {% endif %}
-
-        <!-- BECMG (changements progressifs) -->
-        {% if decoded.becmg_periods %}
-        <h3 class="mt-4 text-warning">🔄 BECMG - Changements progressifs</h3>
-        <p class="text-muted">Les conditions vont progressivement évoluer vers cet état pendant la période indiquée.</p>
-        
-        {% for becmg in decoded.becmg_periods %}
-        <div class="period-card becmg">
-            <h5>📍 Période de transition: {{ becmg.from }} → {{ becmg.to }}</h5>
             
-            {% if becmg.wind_dir %}
-            <p><strong>💨 Vent:</strong> {{ becmg.wind_dir }}° à {{ becmg.wind_speed }} kt
-            {% if becmg.wind_gust %}(rafales {{ becmg.wind_gust }} kt){% endif %}</p>
-            {% endif %}
-            
-            {% if becmg.visibility %}
-            <p><strong>👁️ Visibilité:</strong> {{ becmg.visibility }} m ({{ (becmg.visibility / 1000)|round(1) }} km)</p>
-            {% endif %}
-            
-            {% if becmg.phenomena %}
-            <p><strong>🌧️ Phénomènes:</strong>
-            {% for phenom in becmg.phenomena %}
-                <span class="badge bg-warning text-dark">{{ phenom }}</span>
-            {% endfor %}
-            </p>
-            {% endif %}
-            
-            {% if becmg.clouds %}
-            <p><strong>☁️ Nuages:</strong></p>
-            {% for cloud in becmg.clouds %}
-            <div class="cloud-layer">
-                {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
-                {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+            {% elif period.type == 'becmg' %}
+            <div class="period-card becmg">
+                <h5>🔄 BECMG - Changement progressif</h5>
+                <p><strong>� Période de transition:</strong> {{ period.from }} → {{ period.to }}</p>
+                <p class="text-muted"><em>Les conditions vont progressivement évoluer vers cet état</em></p>
+                
+                {% if period.wind_dir %}
+                <p><strong>💨 Vent:</strong> {{ period.wind_dir }}° à {{ period.wind_speed }} kt
+                {% if period.wind_gust %}(rafales {{ period.wind_gust }} kt){% endif %}</p>
+                {% endif %}
+                
+                {% if period.visibility %}
+                <p><strong>👁️ Visibilité:</strong> {{ period.visibility }} m ({{ (period.visibility / 1000)|round(1) }} km)</p>
+                {% endif %}
+                
+                {% if period.phenomena %}
+                <p><strong>🌧️ Phénomènes:</strong>
+                {% for phenom in period.phenomena %}
+                    <span class="badge bg-warning text-dark">{{ phenom }}</span>
+                {% endfor %}
+                </p>
+                {% endif %}
+                
+                {% if period.clouds %}
+                <p><strong>☁️ Nuages:</strong></p>
+                {% for cloud in period.clouds %}
+                <div class="cloud-layer">
+                    {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                    {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
             </div>
-            {% endfor %}
-            {% endif %}
-        </div>
-        {% endfor %}
-        {% endif %}
-
-        <!-- PROB (probabilités) -->
-        {% if decoded.prob_periods %}
-        <h3 class="mt-4 text-danger">🎲 PROB - Conditions avec probabilité</h3>
-        <p class="text-muted">Ces conditions ont une probabilité indiquée de se produire pendant la période.</p>
-        
-        {% for prob in decoded.prob_periods %}
-        <div class="period-card prob">
-            <h5>📍 Période: {{ prob.from }} → {{ prob.to }} <span class="badge bg-danger">PROB{{ prob.probability }}%</span></h5>
             
-            {% if prob.wind_dir %}
-            <p><strong>💨 Vent:</strong> {{ prob.wind_dir }}° à {{ prob.wind_speed }} kt
-            {% if prob.wind_gust %}(rafales {{ prob.wind_gust }} kt){% endif %}</p>
-            {% endif %}
-            
-            {% if prob.visibility %}
-            <p><strong>👁️ Visibilité:</strong> {{ prob.visibility }} m ({{ (prob.visibility / 1000)|round(1) }} km)</p>
-            {% endif %}
-            
-            {% if prob.phenomena %}
-            <p><strong>🌧️ Phénomènes:</strong>
-            {% for phenom in prob.phenomena %}
-                <span class="badge bg-danger">{{ phenom }}</span>
-            {% endfor %}
-            </p>
-            {% endif %}
-            
-            {% if prob.clouds %}
-            <p><strong>☁️ Nuages:</strong></p>
-            {% for cloud in prob.clouds %}
-            <div class="cloud-layer">
-                {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
-                {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+            {% elif period.type == 'prob' %}
+            <div class="period-card prob">
+                <h5>🎲 PROB{{ period.probability }}% - Conditions avec probabilité</h5>
+                <p><strong>📍 Période:</strong> {{ period.from }} → {{ period.to }}</p>
+                <p class="text-muted"><em>Probabilité de {{ period.probability }}% que ces conditions se produisent</em></p>
+                
+                {% if period.wind_dir %}
+                <p><strong>💨 Vent:</strong> {{ period.wind_dir }}° à {{ period.wind_speed }} kt
+                {% if period.wind_gust %}(rafales {{ period.wind_gust }} kt){% endif %}</p>
+                {% endif %}
+                
+                {% if period.visibility %}
+                <p><strong>👁️ Visibilité:</strong> {{ period.visibility }} m ({{ (period.visibility / 1000)|round(1) }} km)</p>
+                {% endif %}
+                
+                {% if period.phenomena %}
+                <p><strong>🌧️ Phénomènes:</strong>
+                {% for phenom in period.phenomena %}
+                    <span class="badge bg-danger">{{ phenom }}</span>
+                {% endfor %}
+                </p>
+                {% endif %}
+                
+                {% if period.clouds %}
+                <p><strong>☁️ Nuages:</strong></p>
+                {% for cloud in period.clouds %}
+                <div class="cloud-layer">
+                    {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                    {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
             </div>
-            {% endfor %}
             {% endif %}
-        </div>
         {% endfor %}
         {% endif %}
 

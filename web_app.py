@@ -310,13 +310,10 @@ def decode_metar_detailed(metar: str) -> dict:
 
 
 def decode_taf_detailed(taf: str) -> dict:
-    """Décode un TAF avec toutes les périodes et changements en français."""
+    """Décode un TAF avec toutes les périodes et changements en français, ordonnées chronologiquement."""
     taf_upper = taf.upper()
     decoded = {
-        'periods': [],
-        'tempo_periods': [],
-        'becmg_periods': [],
-        'prob_periods': []
+        'all_periods': []  # Liste unique pour ordre chronologique
     }
     
     # ICAO et heure d'émission
@@ -343,9 +340,17 @@ def decode_taf_detailed(taf: str) -> dict:
     # Période de base (après la validité jusqu'au premier modificateur)
     base_match = re.search(r'(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)', taf_upper, re.DOTALL)
     if base_match:
+        period = base_match.group(1)
         base_conditions = base_match.group(2).strip()
         decoded['base_conditions'] = parse_taf_conditions(base_conditions)
-        decoded['base_conditions']['period'] = base_match.group(1)
+        decoded['base_conditions']['period'] = period
+        decoded['base_conditions']['type'] = 'base'
+        decoded['base_conditions']['from'] = f"{period[:2]} à {period[2:4]}h"
+        decoded['base_conditions']['to'] = f"{period[5:7]} à {period[7:]}h"
+        decoded['base_conditions']['sort_key'] = int(period[:4])  # Pour tri chronologique
+    
+    # Collecter toutes les périodes avec leur position dans le texte original
+    all_periods_with_pos = []
     
     # TEMPO (conditions temporaires)
     tempo_pattern = r'TEMPO\s+(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
@@ -353,10 +358,13 @@ def decode_taf_detailed(taf: str) -> dict:
         period = match.group(1)
         conditions = match.group(2).strip()
         tempo_data = parse_taf_conditions(conditions)
+        tempo_data['type'] = 'tempo'
         tempo_data['period'] = period
         tempo_data['from'] = f"{period[:2]} à {period[2:4]}h"
         tempo_data['to'] = f"{period[5:7]} à {period[7:]}h"
-        decoded['tempo_periods'].append(tempo_data)
+        tempo_data['sort_key'] = int(period[:4])
+        tempo_data['position'] = match.start()  # Position dans le texte
+        all_periods_with_pos.append(tempo_data)
     
     # BECMG (changement progressif)
     becmg_pattern = r'BECMG\s+(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
@@ -364,10 +372,13 @@ def decode_taf_detailed(taf: str) -> dict:
         period = match.group(1)
         conditions = match.group(2).strip()
         becmg_data = parse_taf_conditions(conditions)
+        becmg_data['type'] = 'becmg'
         becmg_data['period'] = period
         becmg_data['from'] = f"{period[:2]} à {period[2:4]}h"
         becmg_data['to'] = f"{period[5:7]} à {period[7:]}h"
-        decoded['becmg_periods'].append(becmg_data)
+        becmg_data['sort_key'] = int(period[:4])
+        becmg_data['position'] = match.start()
+        all_periods_with_pos.append(becmg_data)
     
     # PROB (probabilité)
     prob_pattern = r'PROB(\d+)\s+(?:TEMPO\s+)?(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
@@ -376,11 +387,23 @@ def decode_taf_detailed(taf: str) -> dict:
         period = match.group(2)
         conditions = match.group(3).strip()
         prob_data = parse_taf_conditions(conditions)
+        prob_data['type'] = 'prob'
         prob_data['period'] = period
         prob_data['probability'] = probability
         prob_data['from'] = f"{period[:2]} à {period[2:4]}h"
         prob_data['to'] = f"{period[5:7]} à {period[7:]}h"
-        decoded['prob_periods'].append(prob_data)
+        prob_data['sort_key'] = int(period[:4])
+        prob_data['position'] = match.start()
+        all_periods_with_pos.append(prob_data)
+    
+    # Trier par ordre chronologique (d'abord par heure de début, puis par position dans le texte)
+    all_periods_with_pos.sort(key=lambda x: (x['sort_key'], x.get('position', 0)))
+    
+    # Retirer la clé position qui ne sert plus
+    for period in all_periods_with_pos:
+        period.pop('position', None)
+    
+    decoded['all_periods'] = all_periods_with_pos
     
     return decoded
 
