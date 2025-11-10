@@ -200,6 +200,32 @@ def decode(icao):
         return render_template('error.html', error=str(e)), 500
 
 
+@app.route('/decode_taf/<icao>')
+def decode_taf(icao):
+    """Page de décodage détaillé TAF en français."""
+    try:
+        icao = icao.upper()
+        weather_data, airports = get_weather_data()
+        
+        airport = next((a for a in airports if a.icao == icao), None)
+        weather = next((w for w in weather_data if w.icao == icao), None)
+        
+        if not airport or not weather or not weather.taf_raw:
+            return render_template('error.html', 
+                                 error=f"Données TAF non disponibles pour {icao}"), 404
+        
+        # Décoder tous les éléments du TAF
+        decoded = decode_taf_detailed(weather.taf_raw)
+        
+        return render_template('decode_taf.html',
+                             airport=airport,
+                             weather=weather,
+                             decoded=decoded)
+    
+    except Exception as e:
+        return render_template('error.html', error=str(e)), 500
+
+
 def decode_metar_detailed(metar: str) -> dict:
     """Décode un METAR avec tous les détails en français."""
     metar_upper = metar.upper()
@@ -281,6 +307,124 @@ def decode_metar_detailed(metar: str) -> dict:
         decoded['qnh'] = int(pressure_match.group(1))
     
     return decoded
+
+
+def decode_taf_detailed(taf: str) -> dict:
+    """Décode un TAF avec toutes les périodes et changements en français."""
+    taf_upper = taf.upper()
+    decoded = {
+        'periods': [],
+        'tempo_periods': [],
+        'becmg_periods': [],
+        'prob_periods': []
+    }
+    
+    # ICAO et heure d'émission
+    icao_time = re.search(r'\b([A-Z]{4})\s+(\d{6})Z\b', taf_upper)
+    if icao_time:
+        decoded['icao'] = icao_time.group(1)
+        time_str = icao_time.group(2)
+        decoded['issue_day'] = time_str[:2]
+        decoded['issue_hour'] = time_str[2:4]
+        decoded['issue_minute'] = time_str[4:6]
+        decoded['issue_time'] = f"{time_str[:2]} à {time_str[2:4]}:{time_str[4:6]} UTC"
+    
+    # Période de validité
+    valid_match = re.search(r'\b(\d{6})Z\s+(\d{4})/(\d{4})\b', taf_upper)
+    if valid_match:
+        valid_from = valid_match.group(2)
+        valid_to = valid_match.group(3)
+        decoded['valid_from_day'] = valid_from[:2]
+        decoded['valid_from_hour'] = valid_from[2:]
+        decoded['valid_to_day'] = valid_to[:2]
+        decoded['valid_to_hour'] = valid_to[2:]
+        decoded['valid_period'] = f"Du {valid_from[:2]} à {valid_from[2:]}h au {valid_to[:2]} à {valid_to[2:]}h UTC"
+    
+    # Période de base (après la validité jusqu'au premier modificateur)
+    base_match = re.search(r'(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)', taf_upper, re.DOTALL)
+    if base_match:
+        base_conditions = base_match.group(2).strip()
+        decoded['base_conditions'] = parse_taf_conditions(base_conditions)
+        decoded['base_conditions']['period'] = base_match.group(1)
+    
+    # TEMPO (conditions temporaires)
+    tempo_pattern = r'TEMPO\s+(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
+    for match in re.finditer(tempo_pattern, taf_upper, re.DOTALL):
+        period = match.group(1)
+        conditions = match.group(2).strip()
+        tempo_data = parse_taf_conditions(conditions)
+        tempo_data['period'] = period
+        tempo_data['from'] = f"{period[:2]} à {period[2:4]}h"
+        tempo_data['to'] = f"{period[5:7]} à {period[7:]}h"
+        decoded['tempo_periods'].append(tempo_data)
+    
+    # BECMG (changement progressif)
+    becmg_pattern = r'BECMG\s+(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
+    for match in re.finditer(becmg_pattern, taf_upper, re.DOTALL):
+        period = match.group(1)
+        conditions = match.group(2).strip()
+        becmg_data = parse_taf_conditions(conditions)
+        becmg_data['period'] = period
+        becmg_data['from'] = f"{period[:2]} à {period[2:4]}h"
+        becmg_data['to'] = f"{period[5:7]} à {period[7:]}h"
+        decoded['becmg_periods'].append(becmg_data)
+    
+    # PROB (probabilité)
+    prob_pattern = r'PROB(\d+)\s+(?:TEMPO\s+)?(\d{4}/\d{4})\s+(.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
+    for match in re.finditer(prob_pattern, taf_upper, re.DOTALL):
+        probability = match.group(1)
+        period = match.group(2)
+        conditions = match.group(3).strip()
+        prob_data = parse_taf_conditions(conditions)
+        prob_data['period'] = period
+        prob_data['probability'] = probability
+        prob_data['from'] = f"{period[:2]} à {period[2:4]}h"
+        prob_data['to'] = f"{period[5:7]} à {period[7:]}h"
+        decoded['prob_periods'].append(prob_data)
+    
+    return decoded
+
+
+def parse_taf_conditions(conditions: str) -> dict:
+    """Parse les conditions d'une période TAF."""
+    parsed = {}
+    conditions_upper = conditions.upper()
+    
+    # CAVOK
+    parsed['cavok'] = 'CAVOK' in conditions_upper
+    
+    # Vent
+    wind_match = re.search(r'\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b', conditions_upper)
+    if wind_match:
+        parsed['wind_dir'] = wind_match.group(1)
+        parsed['wind_speed'] = int(wind_match.group(2))
+        parsed['wind_gust'] = int(wind_match.group(3)) if wind_match.group(3) else None
+    
+    # Visibilité
+    if not parsed['cavok']:
+        vis_match = re.search(r'\b(\d{4})\b', conditions_upper)
+        if vis_match:
+            parsed['visibility'] = int(vis_match.group(1))
+    
+    # Phénomènes météo
+    phenomena = []
+    for code in ['TSRA', 'TS', '+RA', '-RA', 'RA', 'SHRA', 'SN', 'FG', 'BR', 'DZ', 'GR', 'FZRA', '+SHRA', '-SHRA']:
+        if code in conditions_upper:
+            phenomena.append(code)
+    parsed['phenomena'] = phenomena
+    
+    # Nuages
+    clouds = []
+    cloud_pattern = re.compile(r'\b(FEW|SCT|BKN|OVC)(\d{3})(CB|TCU)?\b')
+    for match in cloud_pattern.finditer(conditions_upper):
+        clouds.append({
+            'coverage': match.group(1),
+            'height': int(match.group(2)) * 100,
+            'type': match.group(3) or None
+        })
+    parsed['clouds'] = clouds
+    
+    return parsed
 
 
 @app.template_filter('format_datetime')

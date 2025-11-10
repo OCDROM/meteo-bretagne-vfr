@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Décodage TAF - {{ airport.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .taf-section {
+            background: #f8f9fa;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .taf-raw {
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+            border-left: 4px solid #17a2b8;
+        }
+        .decode-title {
+            color: #17a2b8;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .period-card {
+            background: white;
+            border: 2px solid #17a2b8;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .period-card.tempo {
+            border-color: #ffc107;
+            background: #fff3cd;
+        }
+        .period-card.becmg {
+            border-color: #fd7e14;
+            background: #ffe5d0;
+        }
+        .period-card.prob {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        .badge-wind {
+            background-color: #198754;
+        }
+        .badge-vis {
+            background-color: #0dcaf0;
+        }
+        .badge-cloud {
+            background-color: #6c757d;
+        }
+        .cloud-layer {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #6c757d;
+        }
+        .phenomena-item {
+            background: #fff3cd;
+            padding: 8px;
+            margin: 5px 0;
+            border-left: 3px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- En-tête -->
+        <div class="row mb-4">
+            <div class="col">
+                <h1><i class="bi bi-bar-chart"></i> Prévisions TAF - {{ airport.name }}</h1>
+                <p class="text-muted">
+                    ICAO: <strong>{{ airport.icao }}</strong> | 
+                    IATA: <strong>{{ airport.iata }}</strong> | 
+                    Coordonnées: {{ airport.latitude }}N, {{ airport.longitude }}E
+                </p>
+                <a href="/detail/{{ airport.icao }}" class="btn btn-outline-secondary">
+                    ← Retour aux détails
+                </a>
+            </div>
+        </div>
+
+        <!-- TAF brut -->
+        <div class="taf-raw">
+            <strong>TAF:</strong> {{ weather.taf_raw }}
+        </div>
+
+        <!-- Informations générales -->
+        <div class="taf-section">
+            <div class="decode-title">📅 Informations générales</div>
+            <p>
+                <strong>Aérodrome:</strong> {{ decoded.icao }}<br>
+                <strong>Émission:</strong> {{ decoded.issue_time }}<br>
+                <strong>⏰ Période de validité:</strong><br>
+                <span class="badge bg-info text-dark" style="font-size: 1.1em;">{{ decoded.valid_period }}</span>
+            </p>
+        </div>
+
+        <!-- Conditions de base -->
+        {% if decoded.base_conditions %}
+        <div class="period-card">
+            <h4 class="text-info">🌤️ Conditions de base ({{ decoded.base_conditions.period }})</h4>
+            <p class="text-muted">Ces conditions sont attendues pendant toute la période de validité, sauf durant les modifications temporaires indiquées ci-dessous.</p>
+            
+            {% if decoded.base_conditions.cavok %}
+            <div class="alert alert-success">
+                <strong>CAVOK</strong> - Conditions météorologiques idéales
+                <ul>
+                    <li>Visibilité ≥ 10 km</li>
+                    <li>Aucun nuage en-dessous de 5000 ft</li>
+                    <li>Pas de CB (cumulonimbus)</li>
+                    <li>Pas de phénomène significatif</li>
+                </ul>
+            </div>
+            {% else %}
+            
+            <!-- Vent -->
+            {% if decoded.base_conditions.wind_dir %}
+            <h5 class="mt-3">💨 Vent</h5>
+            <p>
+                <span class="badge badge-wind">{{ decoded.base_conditions.wind_dir }}°</span>
+                Direction: {{ decoded.base_conditions.wind_dir }}°
+                {% if decoded.base_conditions.wind_dir == 'VRB' %}(variable){% endif %}
+                <br>
+                <span class="badge badge-wind">{{ decoded.base_conditions.wind_speed }} kt</span>
+                Vitesse: {{ decoded.base_conditions.wind_speed }} nœuds ({{ (decoded.base_conditions.wind_speed * 1.852)|round(1) }} km/h)
+                {% if decoded.base_conditions.wind_gust %}
+                <br>
+                <span class="badge bg-warning text-dark">Rafales {{ decoded.base_conditions.wind_gust }} kt</span>
+                Rafales jusqu'à {{ decoded.base_conditions.wind_gust }} nœuds ({{ (decoded.base_conditions.wind_gust * 1.852)|round(1) }} km/h)
+                {% endif %}
+            </p>
+            {% endif %}
+            
+            <!-- Visibilité -->
+            {% if decoded.base_conditions.visibility %}
+            <h5 class="mt-3">👁️ Visibilité</h5>
+            <p>
+                <span class="badge badge-vis">{{ decoded.base_conditions.visibility }} m</span>
+                {{ decoded.base_conditions.visibility }} mètres ({{ (decoded.base_conditions.visibility / 1000)|round(1) }} km)
+            </p>
+            {% endif %}
+            
+            <!-- Phénomènes -->
+            {% if decoded.base_conditions.phenomena %}
+            <h5 class="mt-3">🌧️ Phénomènes</h5>
+            {% for phenom in decoded.base_conditions.phenomena %}
+            <div class="phenomena-item">
+                <strong>{{ phenom }}</strong> -
+                {% if 'TS' in phenom %}Orage{% endif %}
+                {% if 'RA' in phenom %}Pluie{% endif %}
+                {% if 'SH' in phenom %}Averses{% endif %}
+                {% if 'SN' in phenom %}Neige{% endif %}
+                {% if 'FG' in phenom %}Brouillard{% endif %}
+                {% if 'BR' in phenom %}Brume{% endif %}
+                {% if '+' in phenom %}(Forte intensité){% endif %}
+                {% if '-' in phenom %}(Faible intensité){% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+            
+            <!-- Nuages -->
+            {% if decoded.base_conditions.clouds %}
+            <h5 class="mt-3">☁️ Nébulosité</h5>
+            {% for cloud in decoded.base_conditions.clouds %}
+            <div class="cloud-layer">
+                <strong>{{ cloud.coverage }}</strong>
+                {% if cloud.coverage == 'FEW' %}Peu de nuages (1-2/8)
+                {% elif cloud.coverage == 'SCT' %}Nuages épars (3-4/8)
+                {% elif cloud.coverage == 'BKN' %}Ciel fragmenté (5-7/8)
+                {% elif cloud.coverage == 'OVC' %}Ciel couvert (8/8)
+                {% endif %}
+                à <span class="badge badge-cloud">{{ cloud.height }} ft</span>
+                ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                {% if cloud.type %}
+                <span class="badge bg-danger">{{ cloud.type }}</span>
+                {% if cloud.type == 'CB' %}Cumulonimbus (orage)
+                {% elif cloud.type == 'TCU' %}Cumulus bourgeonnant
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+            
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- TEMPO (conditions temporaires) -->
+        {% if decoded.tempo_periods %}
+        <h3 class="mt-4 text-warning">⚠️ TEMPO - Conditions temporaires</h3>
+        <p class="text-muted">Ces conditions peuvent se produire temporairement (moins de 50% du temps) pendant les périodes indiquées.</p>
+        
+        {% for tempo in decoded.tempo_periods %}
+        <div class="period-card tempo">
+            <h5>📍 Période: {{ tempo.from }} → {{ tempo.to }}</h5>
+            
+            {% if tempo.wind_dir %}
+            <p><strong>💨 Vent:</strong> {{ tempo.wind_dir }}° à {{ tempo.wind_speed }} kt
+            {% if tempo.wind_gust %}(rafales {{ tempo.wind_gust }} kt){% endif %}</p>
+            {% endif %}
+            
+            {% if tempo.visibility %}
+            <p><strong>👁️ Visibilité:</strong> {{ tempo.visibility }} m ({{ (tempo.visibility / 1000)|round(1) }} km)</p>
+            {% endif %}
+            
+            {% if tempo.phenomena %}
+            <p><strong>🌧️ Phénomènes:</strong>
+            {% for phenom in tempo.phenomena %}
+                <span class="badge bg-warning text-dark">{{ phenom }}</span>
+            {% endfor %}
+            </p>
+            {% endif %}
+            
+            {% if tempo.clouds %}
+            <p><strong>☁️ Nuages:</strong></p>
+            {% for cloud in tempo.clouds %}
+            <div class="cloud-layer">
+                {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- BECMG (changements progressifs) -->
+        {% if decoded.becmg_periods %}
+        <h3 class="mt-4 text-warning">🔄 BECMG - Changements progressifs</h3>
+        <p class="text-muted">Les conditions vont progressivement évoluer vers cet état pendant la période indiquée.</p>
+        
+        {% for becmg in decoded.becmg_periods %}
+        <div class="period-card becmg">
+            <h5>📍 Période de transition: {{ becmg.from }} → {{ becmg.to }}</h5>
+            
+            {% if becmg.wind_dir %}
+            <p><strong>💨 Vent:</strong> {{ becmg.wind_dir }}° à {{ becmg.wind_speed }} kt
+            {% if becmg.wind_gust %}(rafales {{ becmg.wind_gust }} kt){% endif %}</p>
+            {% endif %}
+            
+            {% if becmg.visibility %}
+            <p><strong>👁️ Visibilité:</strong> {{ becmg.visibility }} m ({{ (becmg.visibility / 1000)|round(1) }} km)</p>
+            {% endif %}
+            
+            {% if becmg.phenomena %}
+            <p><strong>🌧️ Phénomènes:</strong>
+            {% for phenom in becmg.phenomena %}
+                <span class="badge bg-warning text-dark">{{ phenom }}</span>
+            {% endfor %}
+            </p>
+            {% endif %}
+            
+            {% if becmg.clouds %}
+            <p><strong>☁️ Nuages:</strong></p>
+            {% for cloud in becmg.clouds %}
+            <div class="cloud-layer">
+                {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- PROB (probabilités) -->
+        {% if decoded.prob_periods %}
+        <h3 class="mt-4 text-danger">🎲 PROB - Conditions avec probabilité</h3>
+        <p class="text-muted">Ces conditions ont une probabilité indiquée de se produire pendant la période.</p>
+        
+        {% for prob in decoded.prob_periods %}
+        <div class="period-card prob">
+            <h5>📍 Période: {{ prob.from }} → {{ prob.to }} <span class="badge bg-danger">PROB{{ prob.probability }}%</span></h5>
+            
+            {% if prob.wind_dir %}
+            <p><strong>💨 Vent:</strong> {{ prob.wind_dir }}° à {{ prob.wind_speed }} kt
+            {% if prob.wind_gust %}(rafales {{ prob.wind_gust }} kt){% endif %}</p>
+            {% endif %}
+            
+            {% if prob.visibility %}
+            <p><strong>👁️ Visibilité:</strong> {{ prob.visibility }} m ({{ (prob.visibility / 1000)|round(1) }} km)</p>
+            {% endif %}
+            
+            {% if prob.phenomena %}
+            <p><strong>🌧️ Phénomènes:</strong>
+            {% for phenom in prob.phenomena %}
+                <span class="badge bg-danger">{{ phenom }}</span>
+            {% endfor %}
+            </p>
+            {% endif %}
+            
+            {% if prob.clouds %}
+            <p><strong>☁️ Nuages:</strong></p>
+            {% for cloud in prob.clouds %}
+            <div class="cloud-layer">
+                {{ cloud.coverage }} à {{ cloud.height }} ft ({{ (cloud.height * 0.3048)|round(0)|int }} m)
+                {% if cloud.type %}<span class="badge bg-danger">{{ cloud.type }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Note -->
+        <div class="alert alert-info mt-4">
+            <strong>ℹ️ Légende:</strong>
+            <ul class="mb-0">
+                <li><strong>Conditions de base:</strong> Attendues pendant toute la période</li>
+                <li><strong>TEMPO:</strong> Fluctuations temporaires (durée < 1h, occurrence < 50% du temps)</li>
+                <li><strong>BECMG:</strong> Changement permanent et progressif</li>
+                <li><strong>PROB:</strong> Probabilité de conditions particulières (30% ou 40%)</li>
+            </ul>
+        </div>
+
+        <!-- Boutons retour -->
+        <div class="mt-4 mb-5">
+            <a href="/detail/{{ airport.icao }}" class="btn btn-primary">
+                ← Retour à {{ airport.icao }}
+            </a>
+            <a href="/" class="btn btn-outline-secondary">
+                🏠 Retour à l'accueil
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
