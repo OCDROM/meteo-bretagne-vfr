@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Décodage METAR - {{ airport.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .metar-section {
+            background: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .metar-raw {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+        }
+        .decode-title {
+            color: #0d6efd;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .badge-wind {
+            background-color: #198754;
+        }
+        .badge-vis {
+            background-color: #0dcaf0;
+        }
+        .badge-cloud {
+            background-color: #6c757d;
+        }
+        .badge-temp {
+            background-color: #fd7e14;
+        }
+        .cloud-layer {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #6c757d;
+        }
+        .phenomena-item {
+            background: #fff3cd;
+            padding: 8px;
+            margin: 5px 0;
+            border-left: 3px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- En-tête -->
+        <div class="row mb-4">
+            <div class="col">
+                <h1><i class="bi bi-clouds"></i> {{ airport.name }}</h1>
+                <p class="text-muted">
+                    ICAO: <strong>{{ airport.icao }}</strong> | 
+                    IATA: <strong>{{ airport.iata }}</strong> | 
+                    Coordonnées: {{ airport.latitude }}N, {{ airport.longitude }}E
+                </p>
+                <a href="/detail/{{ airport.icao }}" class="btn btn-outline-secondary">
+                    ← Retour aux détails
+                </a>
+            </div>
+        </div>
+
+        <!-- METAR brut -->
+        <div class="metar-raw">
+            <strong>METAR:</strong> {{ weather.metar }}
+        </div>
+
+        <!-- Indicatif et heure -->
+        <div class="metar-section">
+            <div class="decode-title">📍 Indicatif et heure d'observation</div>
+            <p>
+                <strong>Aérodrome:</strong> {{ decoded.icao }}<br>
+                <strong>Date et heure:</strong> {{ decoded.day }} à {{ decoded.hour }}:{{ decoded.minute }} UTC
+                {% if decoded.auto %}
+                <span class="badge bg-info">Observation automatique</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Vent -->
+        {% if decoded.wind_dir %}
+        <div class="metar-section">
+            <div class="decode-title">💨 Vent</div>
+            <p>
+                <span class="badge badge-wind">{{ decoded.wind_dir }}°</span> 
+                Direction: {{ decoded.wind_dir }}° 
+                {% if decoded.wind_dir == 'VRB' %}
+                (variable)
+                {% elif decoded.wind_dir|int < 45 or decoded.wind_dir|int >= 315 %}
+                (Nord)
+                {% elif decoded.wind_dir|int < 135 %}
+                (Est)
+                {% elif decoded.wind_dir|int < 225 %}
+                (Sud)
+                {% else %}
+                (Ouest)
+                {% endif %}
+                <br>
+                <span class="badge badge-wind">{{ decoded.wind_speed }} kt</span> 
+                Vitesse: {{ decoded.wind_speed }} nœuds ({{ (decoded.wind_speed|int * 1.852)|round(1) }} km/h)
+                
+                {% if decoded.wind_gust %}
+                <br>
+                <span class="badge bg-warning text-dark">Rafales {{ decoded.wind_gust }} kt</span>
+                Rafales jusqu'à {{ decoded.wind_gust }} nœuds ({{ (decoded.wind_gust|int * 1.852)|round(1) }} km/h)
+                {% endif %}
+                
+                {% if decoded.wind_var %}
+                <br>
+                <span class="badge bg-secondary">{{ decoded.wind_var }}</span>
+                Direction variable entre {{ decoded.wind_var.split('V')[0] }}° et {{ decoded.wind_var.split('V')[1] }}°
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Visibilité -->
+        <div class="metar-section">
+            <div class="decode-title">👁️ Visibilité</div>
+            {% if decoded.cavok %}
+            <p>
+                <span class="badge bg-success">CAVOK</span>
+                <strong>Conditions météorologiques idéales</strong><br>
+                • Visibilité ≥ 10 km<br>
+                • Aucun nuage en-dessous de 5000 ft<br>
+                • Pas de CB (cumulonimbus)<br>
+                • Pas de phénomène significatif
+            </p>
+            {% else %}
+            <p>
+                <span class="badge badge-vis">{{ decoded.visibility }} m</span>
+                Visibilité: {{ decoded.visibility }} mètres ({{ (decoded.visibility|int / 1000)|round(1) }} km)
+                <br>
+                {% if decoded.visibility|int >= 10000 %}
+                <span class="badge bg-success">Excellente visibilité</span>
+                {% elif decoded.visibility|int >= 5000 %}
+                <span class="badge bg-info">Bonne visibilité</span>
+                {% elif decoded.visibility|int >= 1500 %}
+                <span class="badge bg-warning text-dark">Visibilité modérée</span>
+                {% else %}
+                <span class="badge bg-danger">Visibilité réduite</span>
+                {% endif %}
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- Phénomènes météo -->
+        {% if decoded.phenomena %}
+        <div class="metar-section">
+            <div class="decode-title">🌧️ Phénomènes météorologiques</div>
+            {% for phenom in decoded.phenomena %}
+            <div class="phenomena-item">
+                <strong>{{ phenom }}</strong> - 
+                {% if 'TS' in phenom %}Orage{% endif %}
+                {% if 'RA' in phenom %}Pluie{% endif %}
+                {% if 'SH' in phenom %}Averses{% endif %}
+                {% if 'SN' in phenom %}Neige{% endif %}
+                {% if 'FG' in phenom %}Brouillard{% endif %}
+                {% if 'BR' in phenom %}Brume{% endif %}
+                {% if 'DZ' in phenom %}Bruine{% endif %}
+                {% if 'GR' in phenom %}Grêle{% endif %}
+                {% if 'FZ' in phenom %}Givrant{% endif %}
+                {% if '+' in phenom %}(Forte intensité){% endif %}
+                {% if '-' in phenom %}(Faible intensité){% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Nuages -->
+        {% if decoded.clouds %}
+        <div class="metar-section">
+            <div class="decode-title">☁️ Nébulosité</div>
+            {% for cloud in decoded.clouds %}
+            <div class="cloud-layer">
+                <strong>{{ cloud.coverage }}</strong>
+                {% if cloud.coverage == 'FEW' %}Peu de nuages (1-2/8)
+                {% elif cloud.coverage == 'SCT' %}Nuages épars (3-4/8)
+                {% elif cloud.coverage == 'BKN' %}Ciel fragmenté (5-7/8)
+                {% elif cloud.coverage == 'OVC' %}Ciel couvert (8/8)
+                {% endif %}
+                
+                {% if cloud.height %}
+                à <span class="badge badge-cloud">{{ cloud.height }} ft</span> 
+                ({{ (cloud.height|int * 0.3048)|round(0)|int }} m)
+                {% endif %}
+                
+                {% if cloud.type %}
+                <span class="badge bg-danger">{{ cloud.type }}</span>
+                {% if cloud.type == 'CB' %}Cumulonimbus (nuage d'orage)
+                {% elif cloud.type == 'TCU' %}Cumulus bourgeonnant (risque d'orage)
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Température -->
+        {% if decoded.temperature %}
+        <div class="metar-section">
+            <div class="decode-title">🌡️ Température et point de rosée</div>
+            <p>
+                <span class="badge badge-temp">{{ decoded.temperature }}°C</span>
+                Température: {{ decoded.temperature }}°C
+                <br>
+                <span class="badge bg-info">{{ decoded.dewpoint }}°C</span>
+                Point de rosée: {{ decoded.dewpoint }}°C
+                <br>
+                <span class="badge bg-secondary">Écart: {{ decoded.spread }}°C</span>
+                
+                {% if decoded.spread|int < 3 %}
+                <span class="badge bg-warning text-dark">Risque de brouillard/brume élevé</span>
+                {% elif decoded.spread|int < 5 %}
+                <span class="badge bg-info">Humidité élevée</span>
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Pression -->
+        {% if decoded.qnh %}
+        <div class="metar-section">
+            <div class="decode-title">🔽 Pression atmosphérique (QNH)</div>
+            <p>
+                <span class="badge bg-primary">{{ decoded.qnh }} hPa</span>
+                Pression au niveau de la mer: {{ decoded.qnh }} hectopascals
+                <br>
+                {% if decoded.qnh|int > 1023 %}
+                <span class="badge bg-success">Haute pression (anticyclone)</span>
+                {% elif decoded.qnh|int < 1013 %}
+                <span class="badge bg-warning text-dark">Basse pression (dépression)</span>
+                {% else %}
+                <span class="badge bg-info">Pression normale</span>
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Bouton retour -->
+        <div class="mt-4 mb-5">
+            <a href="/detail/{{ airport.icao }}" class="btn btn-primary">
+                ← Retour à {{ airport.icao }}
+            </a>
+            <a href="/" class="btn btn-outline-secondary">
+                🏠 Retour à l'accueil
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

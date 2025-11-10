@@ -187,7 +187,7 @@
             </div>
             <div class="card-body">
                 <div class="metar-section">{{ weather.metar_raw }}</div>
-                <a href="#" onclick="alert('Pour une description détaillée en français, utilisez la version console du script METAR.py')" class="btn btn-sm btn-outline-primary">
+                <a href="/decode/{{ weather.icao }}" class="btn btn-sm btn-outline-primary">
                     Voir description détaillée
                 </a>
             </div>
@@ -241,8 +241,8 @@
             </div>
             <div class="card-body">
                 <div class="taf-section">{{ weather.taf_raw }}</div>
-                <a href="#" onclick="alert('Pour une description détaillée en français, utilisez la version console du script METAR.py')" class="btn btn-sm btn-outline-info">
-                    Voir description détaillée
+                <a href="/decode/{{ weather.icao }}" class="btn btn-sm btn-outline-info">
+                    Voir description détaillée du METAR
                 </a>
             </div>
         </div>

@@ -18,6 +18,7 @@ Usage local:
 from flask import Flask, render_template, jsonify, redirect, url_for
 import os
 import sys
+import re
 from datetime import datetime
 
 # Importer les fonctions du script METAR.py existant
@@ -27,6 +28,7 @@ from METAR import (
     login_meteo_fr,
     fetch_all_weather,
     parse_taf_timeline,
+    parse_metar_vfr,
     Airport,
     Weather
 )
@@ -170,6 +172,116 @@ def api_refresh():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@app.route('/decode/<icao>')
+def decode(icao):
+    """Page de décodage détaillé METAR en français."""
+    try:
+        icao = icao.upper()
+        weather_data, airports = get_weather_data()
+        
+        airport = next((a for a in airports if a.icao == icao), None)
+        weather = next((w for w in weather_data if w.icao == icao), None)
+        
+        if not airport or not weather or not weather.metar_raw:
+            return render_template('error.html', 
+                                 error=f"Données METAR non disponibles pour {icao}"), 404
+        
+        # Décoder tous les éléments du METAR
+        decoded = decode_metar_detailed(weather.metar_raw)
+        
+        return render_template('decode.html',
+                             airport=airport,
+                             weather=weather,
+                             decoded=decoded)
+    
+    except Exception as e:
+        return render_template('error.html', error=str(e)), 500
+
+
+def decode_metar_detailed(metar: str) -> dict:
+    """Décode un METAR avec tous les détails en français."""
+    metar_upper = metar.upper()
+    decoded = {}
+    
+    # ICAO et heure
+    icao_time = re.search(r'\b([A-Z]{4})\s+(\d{6})Z\b', metar_upper)
+    if icao_time:
+        decoded['icao'] = icao_time.group(1)
+        time_str = icao_time.group(2)
+        decoded['day'] = time_str[:2]
+        decoded['hour'] = time_str[2:4]
+        decoded['minute'] = time_str[4:6]
+    
+    # AUTO
+    decoded['auto'] = 'AUTO' in metar_upper
+    
+    # Vent
+    wind_match = re.search(r'\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b', metar_upper)
+    if wind_match:
+        decoded['wind'] = {
+            'direction': wind_match.group(1),
+            'speed': int(wind_match.group(2)),
+            'gust': int(wind_match.group(3)) if wind_match.group(3) else None
+        }
+    
+    # Variation vent
+    wind_var = re.search(r'\b(\d{3})V(\d{3})\b', metar_upper)
+    if wind_var:
+        decoded['wind_var'] = {
+            'from': wind_var.group(1),
+            'to': wind_var.group(2)
+        }
+    
+    # Visibilité
+    if 'CAVOK' in metar_upper:
+        decoded['visibility'] = {'type': 'CAVOK'}
+    else:
+        vis_match = re.search(r'\b(\d{4})\b', metar_upper)
+        if vis_match:
+            vis_m = int(vis_match.group(1))
+            decoded['visibility'] = {
+                'type': 'meters',
+                'value': vis_m,
+                'km': vis_m / 1000
+            }
+    
+    # Phénomènes météo
+    phenomena = []
+    for code in ['TSRA', 'TS', '+RA', '-RA', 'RA', 'SHRA', 'SN', 'FG', 'BR', 'DZ']:
+        if code in metar_upper:
+            phenomena.append(code)
+    decoded['phenomena'] = phenomena
+    
+    # Nuages
+    clouds = []
+    cloud_pattern = re.compile(r'\b(FEW|SCT|BKN|OVC)(\d{3})(CB|TCU)?\b')
+    for match in cloud_pattern.finditer(metar_upper):
+        clouds.append({
+            'coverage': match.group(1),
+            'height': int(match.group(2)) * 100,
+            'type': match.group(3) or None
+        })
+    decoded['clouds'] = clouds
+    
+    # Température
+    temp_match = re.search(r'\b(M?\d{2})/(M?\d{2})\b', metar_upper)
+    if temp_match:
+        temp_str = temp_match.group(1).replace('M', '-')
+        dew_str = temp_match.group(2).replace('M', '-')
+        decoded['temperature'] = {
+            'temp': int(temp_str),
+            'dewpoint': int(dew_str),
+            'spread': int(temp_str) - int(dew_str)
+        }
+    
+    # Pression
+    pressure_match = re.search(r'\bQ(\d{4})\b', metar_upper)
+    if pressure_match:
+        decoded['pressure'] = int(pressure_match.group(1))
+    
+    return decoded
 
 
 @app.template_filter('format_datetime')
