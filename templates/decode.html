@@ -70,7 +70,19 @@
 
         <!-- METAR brut -->
         <div class="metar-raw">
-            <strong>METAR:</strong> {{ weather.metar }}
+            <strong>METAR:</strong> {{ weather.metar_raw }}
+        </div>
+
+        {% if weather.taf_raw %}
+        <!-- TAF brut -->
+        <div class="metar-raw" style="background: #d1ecf1; border-left: 4px solid #0dcaf0;">
+            <strong>TAF:</strong> {{ weather.taf_raw }}
+        </div>
+        {% endif %}
+
+        <div class="alert alert-info">
+            <strong>ℹ️ Note:</strong> Ce décodage concerne uniquement le METAR (observation actuelle). 
+            Les prévisions TAF sont affichées sous forme de timeline graphique sur la <a href="/detail/{{ airport.icao }}" class="alert-link">page détails</a>.
         </div>
 
         <!-- Indicatif et heure -->
@@ -78,9 +90,15 @@
             <div class="decode-title">📍 Indicatif et heure d'observation</div>
             <p>
                 <strong>Aérodrome:</strong> {{ decoded.icao }}<br>
-                <strong>Date et heure:</strong> {{ decoded.day }} à {{ decoded.hour }}:{{ decoded.minute }} UTC
+                <strong>Observation:</strong> {{ decoded.observation_time if decoded.observation_time else (decoded.day + ' à ' + decoded.hour + ':' + decoded.minute + ' UTC') }}
                 {% if decoded.auto %}
                 <span class="badge bg-info">Observation automatique</span>
+                {% endif %}
+                
+                {% if decoded.valid_period %}
+                <br><br>
+                <strong>⏰ Période de validité TAF:</strong><br>
+                <span class="badge bg-warning text-dark" style="font-size: 1em;">{{ decoded.valid_period }}</span>
                 {% endif %}
             </p>
         </div>

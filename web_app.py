@@ -205,7 +205,7 @@ def decode_metar_detailed(metar: str) -> dict:
     metar_upper = metar.upper()
     decoded = {}
     
-    # ICAO et heure
+    # ICAO et heure d'observation
     icao_time = re.search(r'\b([A-Z]{4})\s+(\d{6})Z\b', metar_upper)
     if icao_time:
         decoded['icao'] = icao_time.group(1)
@@ -213,6 +213,16 @@ def decode_metar_detailed(metar: str) -> dict:
         decoded['day'] = time_str[:2]
         decoded['hour'] = time_str[2:4]
         decoded['minute'] = time_str[4:6]
+        decoded['observation_time'] = f"{time_str[:2]} à {time_str[2:4]}:{time_str[4:6]} UTC"
+    
+    # Période de validité pour TAF (si présent)
+    valid_match = re.search(r'\b(\d{6})Z\s+(\d{4})/(\d{4})\b', metar_upper)
+    if valid_match:
+        valid_from = valid_match.group(2)
+        valid_to = valid_match.group(3)
+        decoded['valid_from'] = f"{valid_from[:2]} à {valid_from[2:]}:00 UTC"
+        decoded['valid_to'] = f"{valid_to[:2]} à {valid_to[2:]}:00 UTC"
+        decoded['valid_period'] = f"Du {valid_from[:2]} à {valid_from[2:]}h au {valid_to[:2]} à {valid_to[2:]}h UTC"
     
     # AUTO
     decoded['auto'] = 'AUTO' in metar_upper
