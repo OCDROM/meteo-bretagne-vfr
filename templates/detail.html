@@ -33,6 +33,66 @@
         .back-button {
             margin-bottom: 20px;
         }
+        .timeline-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        .timeline {
+            display: flex;
+            min-width: 800px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .timeline-hour {
+            flex: 1;
+            min-width: 60px;
+            text-align: center;
+            border-right: 1px solid #dee2e6;
+        }
+        .timeline-hour:last-child {
+            border-right: none;
+        }
+        .timeline-label {
+            background-color: #f8f9fa;
+            padding: 8px 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .timeline-bar {
+            padding: 40px 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .timeline-bar.cavok {
+            background-color: #28a745;
+        }
+        .timeline-bar.vfr {
+            background-color: #007bff;
+        }
+        .timeline-bar.mvfr {
+            background-color: #ffc107;
+            color: #000;
+            text-shadow: none;
+        }
+        .timeline-bar.ifr {
+            background-color: #dc3545;
+        }
+        .timeline-bar.lifr {
+            background-color: #343a40;
+        }
+        .timeline-bar.tempo {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(255,255,255,0.1),
+                rgba(255,255,255,0.1) 10px,
+                rgba(0,0,0,0.1) 10px,
+                rgba(0,0,0,0.1) 20px
+            );
+        }
         @media (max-width: 768px) {
             .metar-section, .taf-section {
                 font-size: 0.85em;
@@ -132,6 +192,46 @@
                 </a>
             </div>
         </div>
+
+        <!-- Graphique visuel TAF -->
+        {% if taf_timeline and taf_timeline|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">📈 Évolution des conditions VFR (Graphique)</h4>
+            </div>
+            <div class="card-body">
+                <p class="mb-3"><strong>Conditions prévues heure par heure :</strong></p>
+                
+                <div class="timeline-container">
+                    <div class="timeline">
+                        {% for entry in taf_timeline %}
+                        <div class="timeline-hour">
+                            <div class="timeline-label">
+                                Jour {{ entry.day }}<br>
+                                {{ entry.hour }}
+                            </div>
+                            <div class="timeline-bar {{ entry.category|lower }} {% if entry.type == 'tempo' %}tempo{% endif %}">
+                                {{ entry.category }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Légende :</strong><br>
+                        <span class="badge bg-success">CAVOK</span> Excellentes conditions |
+                        <span class="badge bg-primary">VFR</span> Bonnes conditions |
+                        <span class="badge bg-warning text-dark">MVFR</span> Conditions marginales |
+                        <span class="badge bg-danger">IFR</span> Vol aux instruments |
+                        <span class="badge bg-dark">LIFR</span> IFR basses<br>
+                        Les barres rayées indiquent des changements <strong>TEMPORAIRES</strong> (TEMPO)
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- TAF brut -->
         {% if weather.taf_raw %}

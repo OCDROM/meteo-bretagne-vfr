@@ -26,6 +26,7 @@ from METAR import (
     get_credentials,
     login_meteo_fr,
     fetch_all_weather,
+    parse_taf_timeline,
     Airport,
     Weather
 )
@@ -140,9 +141,13 @@ def detail(icao):
             return render_template('error.html', 
                                  error=f"Aéroport {icao} non trouvé"), 404
         
+        # Parser le TAF pour créer la timeline
+        taf_timeline = parse_taf_timeline(weather.taf_raw) if weather.taf_raw else []
+        
         return render_template('detail.html',
                              airport=airport,
                              weather=weather,
+                             taf_timeline=taf_timeline,
                              last_update=weather_cache['last_update'])
     
     except Exception as e:

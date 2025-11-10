@@ -1195,6 +1195,113 @@ def interactive_detail_viewer(weather_data: list[Weather], airports: list[Airpor
         print()
 
 
+def parse_taf_timeline(taf: str) -> list[dict]:
+    """
+    Parse le TAF et retourne une timeline des conditions VFR heure par heure.
+    Retourne: [{'hour': '14:00', 'day': '10', 'category': 'CAVOK', 'type': 'base'}, ...]
+    """
+    if not taf:
+        return []
+    
+    taf_upper = taf.upper()
+    timeline = []
+    
+    # Extraire la période de validité
+    valid_match = re.search(r'\b(\d{6})Z\s+(\d{4})/(\d{4})\b', taf_upper)
+    if not valid_match:
+        return []
+    
+    valid_from = valid_match.group(2)
+    valid_to = valid_match.group(3)
+    
+    day_from = int(valid_from[:2])
+    hour_from = int(valid_from[2:])
+    day_to = int(valid_to[:2])
+    hour_to = int(valid_to[2:])
+    
+    # Parser la période de base
+    base_match = re.search(r'(\d{4}/\d{4})\s+([^\s]+.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)', taf_upper, re.DOTALL)
+    base_conditions = base_match.group(2).strip() if base_match else ""
+    base_category = determine_vfr_category_from_taf(base_conditions)
+    
+    # Créer les entrées horaires pour la période de base
+    current_day = day_from
+    current_hour = hour_from
+    
+    while (current_day < day_to) or (current_day == day_to and current_hour <= hour_to):
+        timeline.append({
+            'day': str(current_day).zfill(2),
+            'hour': f"{current_hour:02d}:00",
+            'category': base_category,
+            'type': 'base'
+        })
+        
+        current_hour += 1
+        if current_hour >= 24:
+            current_hour = 0
+            current_day += 1
+    
+    # Parser les TEMPO et les superposer
+    tempo_pattern = r'TEMPO\s+(\d{4})/(\d{4})\s+([^\s]+.*?)(?=\s+(?:TEMPO|BECMG|FM|PROB\d+)|$)'
+    for match in re.finditer(tempo_pattern, taf_upper, re.DOTALL):
+        from_time = match.group(1)
+        to_time = match.group(2)
+        conditions = match.group(3).strip()
+        
+        tempo_day_from = int(from_time[:2])
+        tempo_hour_from = int(from_time[2:])
+        tempo_day_to = int(to_time[:2])
+        tempo_hour_to = int(to_time[2:])
+        
+        tempo_category = determine_vfr_category_from_taf(conditions)
+        
+        # Marquer les heures TEMPO
+        for entry in timeline:
+            entry_day = int(entry['day'])
+            entry_hour = int(entry['hour'][:2])
+            
+            if ((entry_day > tempo_day_from) or (entry_day == tempo_day_from and entry_hour >= tempo_hour_from)) and \
+               ((entry_day < tempo_day_to) or (entry_day == tempo_day_to and entry_hour < tempo_hour_to)):
+                entry['type'] = 'tempo'
+                entry['category'] = tempo_category
+    
+    return timeline
+
+
+def determine_vfr_category_from_taf(conditions: str) -> str:
+    """Détermine la catégorie VFR à partir d'une condition TAF."""
+    conditions_upper = conditions.upper()
+    
+    # CAVOK
+    if 'CAVOK' in conditions_upper:
+        return 'CAVOK'
+    
+    # Extraire visibilité
+    vis_match = re.search(r'\b(\d{4})\b', conditions_upper)
+    visibility_m = int(vis_match.group(1)) if vis_match else 9999
+    
+    # Extraire plafond
+    ceiling_ft = None
+    cloud_pattern = re.compile(r'\b(BKN|OVC)(\d{3})\b')
+    for match in cloud_pattern.finditer(conditions_upper):
+        height = int(match.group(2)) * 100
+        if ceiling_ft is None or height < ceiling_ft:
+            ceiling_ft = height
+    
+    # Déterminer catégorie
+    vis_sm = visibility_m * 0.000621371
+    ceil = ceiling_ft if ceiling_ft is not None else 10000
+    
+    if vis_sm >= 5.0 and ceil >= 3000:
+        return 'VFR'
+    elif vis_sm >= 3.0 and ceil >= 1000:
+        return 'MVFR'
+    elif vis_sm >= 1.0 and ceil >= 500:
+        return 'IFR'
+    else:
+        return 'LIFR'
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Fetch and rank Brittany airports by VFR conditions")
