@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ airport.icao }} - Météo VFR Bretagne</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .metar-section, .taf-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .conditions-box {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .back-button {
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .metar-section, .taf-section {
+                font-size: 0.85em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-button">
+            <a href="/" class="btn btn-outline-secondary">← Retour au tableau</a>
+        </div>
+
+        <div class="text-center mb-4">
+            <h1>{{ airport.icao }} - {{ airport.name }}</h1>
+            <p class="text-muted">
+                📍 {{ "%.4f"|format(airport.lat) }}°N, {{ "%.4f"|format(airport.lon) }}°E
+            </p>
+            {% if last_update %}
+                <small class="text-muted">Dernière mise à jour : {{ last_update|format_datetime }}</small>
+            {% endif %}
+        </div>
+
+        <!-- Statut VFR -->
+        <div class="alert alert-{{ weather.flight_category|category_color }} text-center" role="alert">
+            <h3>
+                {% if weather.flight_category == 'CAVOK' %}
+                    ✅ EXCELLENTES CONDITIONS VFR - CAVOK
+                {% elif weather.flight_category == 'VFR' %}
+                    ✅ BONNES CONDITIONS VFR
+                {% elif weather.flight_category == 'MVFR' %}
+                    ⚠️ CONDITIONS VFR MARGINALES
+                {% elif weather.flight_category == 'IFR' %}
+                    ❌ CONDITIONS IFR - Vol aux instruments requis
+                {% elif weather.flight_category == 'LIFR' %}
+                    ❌ CONDITIONS IFR BASSES
+                {% else %}
+                    ❓ Pas de données disponibles
+                {% endif %}
+            </h3>
+        </div>
+
+        <!-- Résumé rapide -->
+        {% if weather.metar_raw %}
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Visibilité</h5>
+                        <p class="card-text display-6">
+                            {% if weather.visibility_sm %}
+                                {{ weather.visibility_sm|visibility_km }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Plafond</h5>
+                        <p class="card-text display-6">
+                            {% if weather.ceiling_ft %}
+                                {{ "{:,}".format(weather.ceiling_ft) }} ft
+                            {% else %}
+                                Ciel dégagé
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Catégorie</h5>
+                        <p class="card-text">
+                            <span class="badge bg-{{ weather.flight_category|category_color }} fs-4">
+                                {{ weather.flight_category or 'N/A' }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- METAR brut -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">📡 METAR (Observation actuelle)</h4>
+            </div>
+            <div class="card-body">
+                <div class="metar-section">{{ weather.metar_raw }}</div>
+                <a href="#" onclick="alert('Pour une description détaillée en français, utilisez la version console du script METAR.py')" class="btn btn-sm btn-outline-primary">
+                    Voir description détaillée
+                </a>
+            </div>
+        </div>
+
+        <!-- TAF brut -->
+        {% if weather.taf_raw %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">📊 TAF (Prévisions)</h4>
+            </div>
+            <div class="card-body">
+                <div class="taf-section">{{ weather.taf_raw }}</div>
+                <a href="#" onclick="alert('Pour une description détaillée en français, utilisez la version console du script METAR.py')" class="btn btn-sm btn-outline-info">
+                    Voir description détaillée
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>Aucun TAF disponible</strong> pour cet aéroport.
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>Aucune donnée METAR disponible</strong> pour cet aéroport.
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-primary">← Retour au tableau</a>
+        </div>
+
+        <div class="text-center mt-4">
+            <small class="text-muted">
+                Données fournies par aviation.meteo.fr
+            </small>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

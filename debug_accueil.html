@@ -1,0 +1,3336 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+	<title>AEROWEB</title>
+	<meta name="description" content="" />
+	<meta name="keywords" content="" />
+	<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+
+	<link type="text/css" rel="stylesheet" href="./ressources/common.css">
+	<link type="text/css" rel="stylesheet" href="./ressources/aeroweb.css">
+	<link type="text/css" rel="stylesheet" href="./ressources/centre.css">
+	<link type="text/css" rel="stylesheet" href="./ressources/messaero.css">
+	<link type="text/css" rel="stylesheet" href="./ressources/dossier_personnalise.css">
+	<link type="text/css" rel="stylesheet" href="./ressources/affichecartes.css">
+	<link type="text/css" rel="stylesheet" href="./ressources/favoris_all.css">
+
+
+
+
+
+	    
+<script src="/dmap/dmap.js"></script>
+<script src="./js/map_common.js" language="javascript"></script>
+<script src="./js/map.js" language="javascript"></script>
+<script src="./js/dossier_personnalise.js" language="javascript"></script>
+
+
+
+
+	<link rel="stylesheet" type="text/css" href="ressources/submodal.css" />
+	<script type="text/javascript" src="js/submodal_common.js"></script>
+	<script type="text/javascript" src="js/submodal.js"></script>
+	<!-- <script type="text/javascript" src="js/ed_zooming.js"></script> -->
+	<link rel="stylesheet" type="text/css" href="js/jquery/css/jquery-ui-1.8.2.custom.css">
+	<script type="text/javascript" src="js/jquery/js/jquery-1.4.2.min.js"></script>
+	<script type="text/javascript" src="js/jquery/js/jquery-ui-1.8.2.custom.min.js"></script>
+	<script type="text/javascript" src="js/jquery/js/jquery.maphilight.js"></script>
+	<script type="text/javascript" src="./Aeroweb_maille_fine/ressources/js/service_wms.js"></script>
+	<script type="text/javascript" src="js/vigilance.js"></script>
+	<script>
+		jQuery.noConflict();
+
+		var test_connection_en_cours = false;
+		/**
+		javascript utilisé par la mise à jour du dic centre via ajax
+
+		**/
+
+		/////////////////////////////////////////////////////////////////////////////
+		// Dossiers pré-établis
+		function change_css_opacity(opacity) {
+			var cssrules = jQuery("<style type='text/css'> </style>").appendTo("head");
+			cssrules.append(".anim_superpose_radar{ opacity: " + opacity + ";}");
+			jQuery("img[id^='anim_superpose']").addClass("anim_superpose_radar");
+			jQuery("img[id^='anim_wait']").addClass("anim_superpose_radar");
+			//jQuery("img[id^='anim_wait']").css("opacity",opacity);   
+			//anim_wait
+			//anim_superpose'
+		}
+
+		function open_close_famille(me, famille) {
+
+			var id_div = document.getElementById(famille);
+			if (id_div.style.display == 'none') {
+				id_div.style.display = 'block';
+
+				me.style.backgroundImage = 'url(ressources/images/moins.gif)';
+
+			} else {
+				id_div.style.display = 'none';
+				me.style.backgroundImage = 'url(ressources/images/plus.gif)';
+			}
+		}
+
+
+
+
+
+
+		function show_pre_etablis(id) {
+
+			jQuery.ajax({
+				url: "./pre_etablis_to_recent.php?id=" + id,
+				type: 'GET',
+				success: function(transport) {
+					var i = parseInt(jQuery.trim(transport));
+					if (jQuery.trim(transport) == i) {
+						get_recents();
+
+						toDossPersoHtml(i);
+					}
+				}
+			});
+
+
+		}
+
+
+
+		function toDossPersoHtml(i) {
+
+
+			var parametres = 'id=' + i + "&origine=recents&id_recent_ordre=1";
+			var url = 'dossier_personnalise_show_html.php';
+
+
+			jQuery.ajax({
+				url: url,
+				type: 'GET',
+				data: parametres,
+				success: function(transport) {
+
+
+
+					jQuery('#centrebody').attr('innerHTML', transport);
+
+
+
+				},
+				error: function() {
+					alert('ajax erreur');
+				},
+				complete: function() {
+					jQuery('#waiting').hide();
+				}
+
+
+
+			});
+			jQuery('#waiting').show();
+			jQuery('#centrebody').attr('innerHTML', "");
+
+
+
+		}
+
+		////////////////////////////////////////////////////////////////
+		function test_connection() {
+			var d;
+			var s = "ttt";
+			d = new Date();
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			if (test_connection_en_cours == false) {
+				test_connection_en_cours = true;
+				jQuery.ajax({
+					url: './is_connected.php?time=' + s,
+					type: 'get',
+					success: function(transport) {
+						if (transport == 'ko') {
+							document.location.href = "deconnect.php?time=" + s;
+						}
+						test_connection_en_cours = false;
+					}
+				});
+			}
+
+		}
+
+		function detectIE(ClassID, name) {
+			result = false;
+			document.write('<SCR' + 'IPT LANGUAGE=VBScript>\n on error resume next \n result = IsObject(CreateObject("' + ClassID + '"))</SCR' + 'IPT>\n');
+			if (result) return name + ',';
+			else return '';
+		}
+
+		function detectNS(ClassID, name) {
+			n = "";
+			if (nse.indexOf(ClassID) != -1)
+				if (navigator.mimeTypes[ClassID].enabledPlugin != null)
+					n = name + ",";
+			return n;
+		}
+
+		function detect_plugin_pdf() {
+			var agt = navigator.userAgent.toLowerCase();
+			var ie = (agt.indexOf("msie") != -1);
+			var ns = (navigator.appName.indexOf("Netscape") != -1);
+			var win = ((agt.indexOf("win") != -1) || (agt.indexOf("32bit") != -1));
+			var mac = (agt.indexOf("mac") != -1);
+
+			if (ie && win) {
+				pluginlist = detectIE("PDF.PdfCtrl.3", "Acrobat Reader") + detectIE("PDF.PdfCtrl.4", "Acrobat Reader") + detectIE("PDF.PdfCtrl.5", "Acrobat Reader") + detectIE("PDF.PdfCtrl.6", "Acrobat Reader");
+			}
+			if (ns || !win) {
+				nse = "";
+				for (var i = 0; i < navigator.mimeTypes.length; i++)
+					nse += navigator.mimeTypes[i].type.toLowerCase();
+				pluginlist = detectNS("application/pdf", "Acrobat Reader");
+			}
+
+
+			if (pluginlist.length > 0) {
+				pluginlist = pluginlist.substring(0, pluginlist.length - 1);
+				if (pluginlist.indexOf("Acrobat Reader") != -1)
+					alert('plugin pdf present');
+				else alert('plugin pdf absent');
+				return;
+			}
+			alert('plugin pdf absent');
+		}
+
+		var center_map = null;
+		var zoom_map = null;
+		var param_opemet = "param_opmet_oaci";
+
+
+
+		var indice_anim = -1;
+		var timer_anim = null;
+		var delay_anim = 300;
+		var cpt_image_anim = 0;
+		var stop_anim_demande = false;
+
+		function show_anim_number(indice) {
+
+
+			if (!jQuery('#anim' + indice).get(0)) return;
+			jQuery('#anim' + indice).css('visibility', 'visible');;
+			if (jQuery('#superpose_image').get(0)) {
+				if (jQuery('#anim_superpose' + indice).get(0)) {
+
+					if (jQuery('#superpose_image').attr('checked') == true) {
+						jQuery('#anim_superpose' + indice).css('visibility', 'visible');
+
+
+						jQuery('#echelle_radar').css('display', 'block');
+					} else {
+						jQuery('#anim_superpose' + indice).css('visibility', 'hidden');
+
+
+						jQuery('#echelle_radar').css('display', 'none');
+					}
+				}
+			}
+			jQuery('#anim_cell' + indice).attr('className', 'cursor_actif');
+			indice_anim = indice;
+		}
+
+		function count_image_anim(total, index) {
+			cpt_image_anim++;
+
+			jQuery('#anim_cell' + index).css('visibility', 'visible');
+
+
+
+
+
+			if (cpt_image_anim == total) {
+
+				if (total > 1) {
+					jQuery('#anim_play').css('display', 'block');
+					jQuery('#anim_stop').css('display', 'block');
+				}
+				jQuery('#anim_wait').css('display', 'none');
+				if (jQuery('#anim_expand').get(0)) jQuery('#anim_expand').css('display', 'block');
+				if (jQuery('#anim_zoomplus').get(0)) jQuery('#anim_zoomplus').css('display', 'block');
+				if (jQuery('#anim_zoommoins').get(0)) jQuery('#anim_zoommoins').css('display', 'block');
+				if (jQuery('#select_type_image_anim').get(0)) jQuery('#select_type_image_anim').attr('disabled', false);
+				if (jQuery('#select_fly_level_anim').get(0)) jQuery('#select_fly_level_anim').attr('disabled', false);
+
+				if (jQuery('#select_echeance_anim').get(0)) jQuery('#select_echeance_anim').attr('disabled', false);
+
+			}
+
+		}
+
+		function zoommoins() {
+			var width = jQuery('#conteneur_zoom_plus').width();
+
+			var height = jQuery('#conteneur_zoom_plus').height();
+			var pcwidth = width / 10;
+			var pcheight = height / 10;
+
+			var newwidth = jQuery('#conteneur_zoom_plus').width() - pcwidth;
+
+			var newheight = jQuery('#conteneur_zoom_plus').height() - pcheight;
+
+
+			if (newwidth >= jQuery('#conteneur_zoom').width()) {
+
+				jQuery('#conteneur_zoom_plus').width(newwidth);
+
+				jQuery('#conteneur_zoom_plus').height(newheight);
+
+
+
+				var p = jQuery('#conteneur_zoom_plus').position();
+
+				jQuery('#conteneur_zoom_plus').css('left', p.left + (pcwidth / 2) + 'px');
+
+				jQuery('#conteneur_zoom_plus').css('top', p.top + (pcheight / 2) + 'px');
+
+			} else {
+
+
+				jQuery('#conteneur_zoom_plus').width(width);
+				jQuery('#conteneur_zoom_plus').height(height);
+
+				jQuery('#conteneur_zoom_plus').css('left', '0px');
+				jQuery('#conteneur_zoom_plus').css('top', '0px');
+
+
+			}
+
+
+
+
+			deplace_carte(jQuery('#conteneur_zoom_plus'));
+
+		}
+
+		function zoomhome() {
+
+			jQuery('#conteneur_zoom_plus').width(jQuery('#conteneur_zoom').width());
+			jQuery('#conteneur_zoom_plus').height(jQuery('#conteneur_zoom').height());
+			jQuery('#conteneur_zoom_plus').css('left', '0px');
+			jQuery('#conteneur_zoom_plus').css('top', '0px');
+
+		}
+
+		function zoomplus() {
+
+			var pcwidth = jQuery('#conteneur_zoom_plus').width() / 10;
+
+			var pcheight = jQuery('#conteneur_zoom_plus').height() / 10;
+			jQuery('#conteneur_zoom_plus').width(jQuery('#conteneur_zoom_plus').width() + pcwidth);
+			jQuery('#conteneur_zoom_plus').height(jQuery('#conteneur_zoom_plus').height() + pcheight);
+
+			var position = jQuery('#conteneur_zoom_plus').position();
+			jQuery('#conteneur_zoom_plus').css('left', (position.left - (pcwidth / 2)) + 'px');
+
+
+			jQuery('#conteneur_zoom_plus').css('top', (position.top - (pcheight / 2)) + 'px');
+
+
+		}
+
+		function get_fly_level_from_domaine_and_chart(id_domaine, id_chart) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./get_fly_level_from_domaine_and_chart.php?id_domaine=" + id_domaine + "&id_chart=" + id_chart + "&time=" + s,
+				type: 'GET',
+				success: function(transport) {
+					var xml = transport;
+
+
+
+
+					var options = xml.getElementsByTagName('option');
+
+					jQuery('#mniveau option').remove();
+
+
+					for (var i = 0; i < options.length; i++) {
+						var oOption = document.createElement('OPTION');
+
+
+						jQuery('#mniveau').attr('options').add(oOption);
+						oOption.innerHTML = options[i].firstChild.data;
+						oOption.value = options[i].getAttribute('value');
+
+					}
+
+				}
+			});
+
+		}
+
+		function get_level_from_domaine_and_chart_aerologique(id_domaine, id_chart) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./get_level_from_domaine_and_chart_aerologique.php?id_domaine=" + id_domaine + "&id_chart=" + id_chart + "&time=" + s,
+				type: 'GET',
+				success: function(transport) {
+
+					var xml = transport;
+
+
+
+
+					var options = xml.getElementsByTagName('option');
+
+
+					jQuery('#mniveau_aerologique option').remove();
+					/*
+					while (jQuery('#mniveau_aerologique').attr('options').length != 0)
+					{
+						jQuery('#mniveau_aerologique').attr('options')[0].remove();
+					}
+					*/
+					for (var i = 0; i < options.length; i++) {
+						var oOption = document.createElement('OPTION');
+
+						jQuery('#mniveau_aerologique').attr('options').add(oOption);
+						oOption.innerHTML = options[i].firstChild.data;
+						oOption.value = options[i].getAttribute('value');
+
+					}
+
+				},
+				error: function() {}
+			});
+
+		}
+
+		function get_type_carte_from_domaine(id_domaine) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./get_type_carte_from_domaine.php?id_domaine=" + id_domaine + "&time=" + s,
+				type: 'GET',
+				success: function(transport) {
+					var xml = transport;
+
+					var options = xml.getElementsByTagName('option');
+
+					jQuery('#mtype_carte option').remove();
+
+
+					for (var i = 0; i < options.length; i++) {
+						var oOption = document.createElement('OPTION');
+
+						jQuery('#mtype_carte').attr('options').add(oOption);
+						oOption.innerHTML = options[i].firstChild.data;
+						oOption.value = options[i].getAttribute('value');
+
+					}
+					get_fly_level_from_domaine_and_chart(jQuery('#mdomaine').val(), jQuery('#mtype_carte').val())
+				}
+			});
+
+		}
+
+		function get_type_carte_from_domaine_aerologique(id_domaine) {
+
+
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./get_type_carte_from_domaine_aerologique.php?id_domaine=" + id_domaine + "&time=" + s,
+				type: 'get',
+				success: function(transport) {
+					var xml = transport;
+
+					var options = xml.getElementsByTagName('option');
+
+					jQuery('#mtype_carte_aerologique option').remove();
+					/*while (jQuery('#mtype_carte_aerologique').attr('options').length != 0)
+					{
+						jQuery('#mtype_carte_aerologique').attr('options')[0].remove();
+					}*/
+
+					for (var i = 0; i < options.length; i++) {
+						var oOption = document.createElement('OPTION');
+
+						jQuery('#mtype_carte_aerologique').attr('options').add(oOption);
+						oOption.innerHTML = options[i].firstChild.data;
+						oOption.value = options[i].getAttribute('value');
+
+					}
+					get_level_from_domaine_and_chart_aerologique(jQuery('#mdomaine_aerologique').val(), jQuery('#mtype_carte_aerologique').val());
+				},
+				error: function() {}
+			});
+
+		}
+
+
+
+
+		function deplace_carte(element) {
+
+			var p = element.position()
+
+			if (p.left > 0) element.css('left', '0px');
+			else {
+				if (p.left + element.width() < jQuery('#conteneur_zoom').width()) {
+					p.left += jQuery('#conteneur_zoom').width() - (element.width() + p.left);
+					element.css('left', p.left + 'px');
+				}
+
+			}
+			if (p.top > 0) element.css('top', '0px');
+			else {
+				if (p.top + element.height() < jQuery('#conteneur_zoom').height()) {
+					p.top += jQuery('#conteneur_zoom').height() - (element.height() + p.top);
+					element.css('top', p.top + 'px');
+				}
+
+			}
+
+		}
+
+		function stop_anim() {
+			if (timer_anim) {
+				clearInterval(timer_anim);
+				timer_anim = null;
+			}
+
+
+		}
+
+		function anim_moins_vite_action() {
+			delay_anim += 500;
+			if (delay_anim < 500) delay_anim = 500;
+			demarre_anim();
+
+		}
+
+		function anim_plus_vite_action() {
+			delay_anim -= 500;
+			if (delay_anim < 500) delay_anim = 500;
+			demarre_anim();
+
+		}
+
+		function image_suivante() {
+			var i = indice_anim;
+			i++;
+			if (!jQuery('#anim' + i).get(0)) i = 0;
+			vu_image_anim(i);
+		}
+
+		function image_precedente() {
+			var i = indice_anim;
+			i--;
+			if (!jQuery('#anim' + i).get(0)) {
+				i = -1;
+				while (jQuery('#anim' + (i + 1)).get(0)) i++;
+			}
+			vu_image_anim(i);
+		}
+
+		function vu_image_anim(indice) {
+			if (jQuery('#anim_cell' + indice).css('visibility') == 'visible') {
+				stop_anim();
+				hide_anim_number(indice_anim)
+				show_anim_number(indice);
+			}
+		}
+
+		function demarre_anim() {
+			if (stop_anim_demande == true) return;
+			stop_anim();
+			timer_anim = setInterval(anim_sat, delay_anim);
+
+		}
+
+		function hide_anim_number(indice) {
+
+			if (!jQuery('#anim' + indice).get(0)) return;
+			jQuery('#anim' + indice).css('visibility', 'hidden');
+
+			if (jQuery('#anim_superpose' + indice).get(0)) {
+				jQuery('#anim_superpose' + indice).css('visibility', 'hidden');
+
+			}
+			jQuery('#anim_cell' + indice).attr('className', 'cursor_inactif');
+		}
+
+		function anim_sat() {
+			if (stop_anim_demande == true) return;
+			if (!jQuery('#anim0').get(0)) {
+				stop_anim();
+				return;
+			}
+
+			var i = indice_anim + 1;
+			if (!jQuery('#anim' + i).get(0)) i = 0;
+
+
+			if (i == 0) {
+				stop_anim();
+				setTimeout("hide_anim_number(" + indice_anim + ");show_anim_number(" + i + ");demarre_anim();", 1000);
+				return;
+			}
+
+			hide_anim_number(indice_anim)
+			show_anim_number(i)
+
+		}
+
+		function load_anim(indice, link_precedent) {
+
+
+			jQuery('#anim' + (indice)).attr('src', link_precedent);
+
+		}
+
+		function tolangue() {
+			var url = "accueil.php?lang=" + "gb";
+			window.open(url, '_self');
+		}
+		/* * * * */
+		function deplace_favoris(from, to) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./favoris_deplace.php?from=" + from + "&to=" + to + s,
+				type: 'GET',
+				success: function(transport) {
+					get_favoris();
+
+				},
+				error: function() {
+					get_favoris();
+				}
+			});
+
+		}
+
+		function demande_efface_favoris(id) {
+			var t = "<table border=0 width='150px'><tr><td align='left'><a href='#' onclick='return false;' class='lien1'>Non</a></td> <td align='right'> <a href='' onclick='efface_favoris(" + id + ");return false;' class='lien1'>Oui</a></td></tr></table>";
+
+			Tip(t, BORDERWIDTH, 2, STICKY, true, CLICKCLOSE, true, BGCOLOR, 'ivory', BORDERCOLOR, 'red', SHADOW, true, TITLE, "Suppression de ce favori?", DURATION, 3000);
+
+		}
+
+		function make_url_vigilance() {
+
+			jQuery('#containerVigilance2').attr('src', "./vigilance.php?time=1762790262");
+
+
+		}
+
+		function efface_favoris(id) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./favoris_delete.php?id=" + id + s,
+				type: 'GET',
+				success: function(transport) {
+					get_favoris();
+
+				},
+				error: function() {
+					get_favoris();
+				}
+			});
+
+		}
+
+		function get_favoris() {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./favoris_get.php?id_user=280569" + s,
+				type: 'GET',
+				success: function(transport) {
+
+					var i_fin_petit_tableau = -1;
+					var response = transport;
+					var favoris = response.getElementsByTagName('favoris');
+					var id_favoris = document.getElementById('dossiers_favoris');
+					var id_favoris_all = document.getElementById('favoris_all');
+
+					id_favoris.innerHTML = "";
+					if (id_favoris_all) id_favoris_all.innerHTML = "";
+
+					if (favoris.length == 0) {
+						var table = document.createElement('TABLE');
+						table.width = "100%";
+						table.border = "0";
+						table.cellspacing = "0";
+						table.cellpadding = "0";
+						var tr = table.insertRow(0);
+						var td = tr.insertCell(0);
+						td.innerHTML = "<span class='texte4'>Vous n&rsquo;avez aucun dossier de vol favori. Pour ajouter un dossier de vol favori, rendez-vous sur les pages :</span><br /><br /><span class='spanniveau1' ><a target='_self' href='javascript:to_petite_carte();' title=''>Dossier personnalis&eacute;</a></span><br><span class='spanniveau1'><a target='_self' href='javascript:toDossPre();' title=''>Dossiers pr&eacute;-&eacute;tablis</a></span>"
+						id_favoris.appendChild(table);
+
+					} else {
+
+						var table = document.createElement('TABLE');
+						table.width = "298px";
+						table.border = 0;
+						table.cellSpacing = 0;
+						table.cellPadding = 0;
+						table.align = 'center';
+						table.style.border = '0px solid red';
+						var precedent = favoris[favoris.length - 1].getAttribute('ordre');
+						if (id_favoris_all) {
+							var table_favoris_all = document.createElement('TABLE');
+							table_favoris_all.width = "410px";
+							table_favoris_all.border = 0;
+							table_favoris_all.cellSpacing = 0;
+							table_favoris_all.cellPadding = 0;
+							table_favoris_all.align = 'center';
+							table_favoris_all.style.border = '0px solid red';
+						}
+
+						for (var i = 0; i < favoris.length; i++) {
+
+							if (favoris[i + 1]) suivant = favoris[i + 1].getAttribute('ordre')
+							else suivant = favoris[0].getAttribute('ordre');;
+
+							if (i % 2 == 0) {
+								var imprimante = 'ressources/images/picto/imprimante-bch.jpg';
+								var cl = 'cellCoulBlanche';
+							} else {
+								var imprimante = 'ressources/images/picto/imprimante-ble.jpg';
+								var cl = 'cellCoulBleue';
+							}
+							var err = favoris[i].getAttribute('err');
+							if (i < 5) {
+								var tr = table.insertRow(i);
+								var td = tr.insertCell(0);
+
+
+								td.className = cl;
+								td.valign = 'middle';
+								var title = favoris[i].getAttribute('etapes');
+								if (title != "") title = "Via: " + title;
+								td.innerHTML = "<a href='' onclick=\"return newwindow('dossier_personnalise_show_pdf.php?id=" + favoris[i].getAttribute('id') + "&origine=favoris');\" target=\"_new\"title=\"Impression au format PDF\"><img title=\"Impression au format PDF\" src='" + imprimante + "' alt='' border='0' /></a>";
+								td.width = "30px";
+								td.height = '15px';
+								td.style.border = '0px solid lime';
+								td.align = 'left';
+
+								var td = tr.insertCell(1);
+								td.className = cl;
+								td.align = 'left';
+								td.width = "268px";
+								td.style.border = '0px solid red';
+								if (err == '1') td.innerHTML = "<a style='color:red;' href='#' onclick='dossier_vol_show_html_from_favoris(" + favoris[i].getAttribute('id') + ");return false;'  title='" + title + "' class='lien6'>" + favoris[i].firstChild.data + "</a>";
+								else td.innerHTML = "<a  href='#' onclick='dossier_vol_show_html_from_favoris(" + favoris[i].getAttribute('id') + ");return false;'  title='" + title + "' class='lien6'>" + favoris[i].firstChild.data + "</a>";
+								i_fin_petit_tableau = i;
+
+							}
+
+
+							if (id_favoris_all) {
+								var tr = table_favoris_all.insertRow(i);
+								var td = tr.insertCell(0);
+
+								td.width = "30";
+								td.height = '15';
+								td.className = cl;
+								td.valign = 'middle';
+								td.innerHTML = "<a href='' target='_new' onclick=\"return newwindow('dossier_personnalise_show_pdf.php?id=" + favoris[i].getAttribute('id') + "&origine=favoris');\" title=\"Impression au format PDF\"><img title=\"Impression au format PDF\" src='" + imprimante + "' alt='' border='0' /></a>";
+
+								var td = tr.insertCell(1);
+								td.className = cl;
+								var title = favoris[i].getAttribute('etapes');
+								if (title != "") title = "Via: " + title;
+								if (err == '1')
+									td.innerHTML = "<a style='color:red;' id='favoris_name_" + favoris[i].getAttribute('id') + "' href='#' onclick='dossier_vol_show_html_from_favoris(" + favoris[i].getAttribute('id') + ");return false;' title='" + title + "' class='lien6'>" + favoris[i].firstChild.data + "</a>";
+								else td.innerHTML = "<a id='favoris_name_" + favoris[i].getAttribute('id') + "' href='#' onclick='dossier_vol_show_html_from_favoris(" + favoris[i].getAttribute('id') + ");return false;' title='" + title + "' class='lien6'>" + favoris[i].firstChild.data + "</a>";
+
+								var td = tr.insertCell(2);
+								td.className = cl;
+								td.width = '22px';
+								td.innerHTML = "<a href='#' title=\"Modifier le nom de ce favori\" ><img border='0' title=\"Modifier le nom de ce favori\" alt='' src='./ressources/images/picto/note-bch.jpg' onclick='change_name_favoris(" + favoris[i].getAttribute('id') + ");'/></a>";
+
+								var td = tr.insertCell(3);
+								td.className = cl;
+								td.width = '20px';
+								td.innerHTML = "<a href='#' title=\"Effacer ce favori\"><img title=\"Effacer ce favori\" onclick=\"demande_efface_favoris(" + favoris[i].getAttribute('id') + ");\" border='0' alt='' src='./ressources/images/picto/supprimer.jpg'/></a>";
+
+								var td = tr.insertCell(4);
+								td.className = cl;
+								td.width = '20px';
+								td.innerHTML = "<a href='#' title=\"Monter\"><img title=\"Monter\" onclick=\"deplace_favoris(" + favoris[i].getAttribute('ordre') + "," + precedent + ");\" border='0' alt='' src='./ressources/images/picto/monter.jpg'/></a>";
+
+
+								var td = tr.insertCell(5);
+								td.className = cl;
+								td.width = '20px';
+								td.innerHTML = "<a href='#' title=\"Descendre\"><img title=\"Descendre\" onclick=\"deplace_favoris(" + favoris[i].getAttribute('ordre') + "," + suivant + ");\" border='0' alt='' src='./ressources/images/picto/descendre.jpg'/></a>";
+
+
+
+							}
+
+
+
+
+
+							precedent = favoris[i].getAttribute('ordre');
+
+
+						}
+
+						if (i_fin_petit_tableau >= 0) {
+
+
+
+
+							var i = i_fin_petit_tableau + 1;
+
+							if (i % 2 == 0) {
+
+								var cl = 'cellCoulBlanche';
+							} else {
+
+								var cl = 'cellCoulBleue';
+							}
+
+							var tr = table.insertRow(i);
+							var td = tr.insertCell(0);
+
+							td.className = cl;
+							td.colSpan = 2;
+							td.align = 'center';
+							//td.innerHTML="<a href='./accueil.php?link_to=favoris_all' title='' class='lien6'>Tous mes favoris</a>";
+							td.innerHTML = "<a href='' title='' onclick='affiche_all_favoris();return false;' class='lien6'>Tous mes favoris</a>";
+
+						}
+
+						id_favoris.appendChild(table);
+						if (id_favoris_all) id_favoris_all.appendChild(table_favoris_all);
+
+					}
+
+
+
+
+				},
+				error: function() {
+					alert('Error');
+				}
+			});
+
+		}
+
+		function affiche_all_favoris() {
+			var d = new Date();
+			var s = "?time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			if (map) {
+				map.destroy();
+				map = null;
+			}
+
+
+			jQuery('#centrebody').attr('innerHTML', "");
+			open("#debut_page", "_self");
+			jQuery.ajax({
+				url: "favoris_all.php" + s,
+				type: 'GET',
+
+
+				success: function(transport) {
+
+					var response = transport;
+					jQuery('#centrebody').attr('innerHTML', response);
+					get_favoris();
+					jQuery('#menu_droit').css('display', 'block');
+				},
+				error: function() {
+					alert("Erreur");
+				},
+				complete: function() {
+					setTimeout("cacheWaiting()", 100);
+				},
+				beforeSend: function() {
+					busyProcess();
+				}
+			});
+
+		}
+
+		function recent_to_favoris(id) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./recent_to_favoris.php?id=" + id + s,
+				type: 'GET',
+				success: function(transport) {
+					get_favoris();
+
+				},
+				error: function() {
+					get_favoris();
+				}
+			});
+
+		}
+
+		function get_recents() {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			jQuery.ajax({
+				url: "./recents_get.php?id_user=280569" + s,
+				type: 'get',
+				success: function(transport) {
+
+
+					var response = transport;
+					var recents = response.getElementsByTagName('recents');
+					var id_recents = document.getElementById('dossiers_recents');
+
+
+					id_recents.innerHTML = "";
+
+
+					if (recents.length == 0) {
+
+						var table = document.createElement('TABLE');
+						table.width = "100%";
+
+
+						table.border = "0";
+						table.cellspacing = "0";
+						table.cellpadding = "0";
+						var tr = table.insertRow(0);
+						tr.align = 'center';
+						var td = tr.insertCell(0);
+						td.valign = "middle";
+						td.height = '130px';
+
+						td.innerHTML = "<span class='texte4'>Vous n'avez consulté aucun dossier de vol.</span>"
+						id_recents.appendChild(table);
+
+					} else {
+
+						var table = document.createElement('TABLE');
+						table.width = "298px";
+						table.border = 0;
+						table.cellSpacing = 0;
+						table.cellPadding = 0;
+						//table.align='center';
+						table.style.border = '0px solid red';
+
+
+						for (var i = 0; i < recents.length; i++) {
+
+
+
+							if (i % 2 == 0) {
+								var imprimante = 'ressources/images/picto/imprimante-bch.jpg';
+								var cl = 'cellCoulBlanche';
+							} else {
+								var imprimante = 'ressources/images/picto/imprimante-ble.jpg';
+								var cl = 'cellCoulBleue';
+							}
+							var err = recents[i].getAttribute('err');
+							if (i < 5) {
+								var tr = table.insertRow(i);
+								var td = tr.insertCell(0);
+
+								td.width = "30";
+								td.height = '15';
+								td.className = cl;
+								td.valign = 'middle';
+								var title = recents[i].getAttribute('etapes');
+								if (title != "") title = "Via: " + title;
+								td.innerHTML = "<a href='' onclick=\"return newwindow('dossier_personnalise_show_pdf.php?origine=recents&id=" + recents[i].getAttribute('id') + "');\" target=\"_new\" title=\"Impression au format PDF\"><img title=\"Impression au format PDF\" src='" + imprimante + "' alt='' border='0' /></a>";
+								td.align = 'left';
+								var td = tr.insertCell(1);
+								td.className = cl;
+								td.align = 'left';
+								if (err == '1')
+									td.innerHTML = "<a style='color:red;' href='#' onclick='dossier_vol_show_html_from_recents(" + recents[i].getAttribute('ordre') + "," + recents[i].getAttribute('id') + ");return false;' title='" + title + "' class='lien6'>" + recents[i].firstChild.data + "</a>";
+								else td.innerHTML = "<a href='#' onclick='dossier_vol_show_html_from_recents(" + recents[i].getAttribute('ordre') + "," + recents[i].getAttribute('id') + ");return false;' title='" + title + "' class='lien6'>" + recents[i].firstChild.data + "</a>";
+
+
+							}
+
+
+
+						}
+
+
+
+						id_recents.appendChild(table);
+
+
+					}
+
+
+
+
+				},
+				error: function() {
+					alert('Error');
+				}
+			});
+
+		}
+
+		function change_name_favoris(index) {
+
+			var id_a = document.getElementById('favoris_name_' + index);
+			//var content_html=id_a.innerHTML.stripTags().escapeHTML();
+			var content_html = jQuery('#' + 'favoris_name_' + index).text();
+			var size = content_html.length
+			var new_content_html = "<input class='aero' onblur='change_name_favoris_input(" + index + ")' id='favoris_name_input_" + index + "' type='text' style='width:98%;' value='" + content_html + "'>";
+
+
+			//Element.replace(id_a,new_content_html);
+			jQuery('#' + 'favoris_name_' + index).replaceWith(new_content_html);
+
+
+			document.getElementById('favoris_name_input_' + index).focus();
+		}
+
+		function change_name_favoris_input(index) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+
+			var id_input = document.getElementById('favoris_name_input_' + index);
+			var value = jQuery('#' + 'favoris_name_input_' + index).val();
+			var new_content_html = "<a id='favoris_name_" + index + "' href='#' title='' class='lien6'>" + value + "</a>";
+			//Element.replace(id_input,new_content_html);
+			jQuery('#' + 'favoris_name_input_' + index).replaceWith(new_content_html);
+
+			jQuery.ajax({
+				url: "./favoris_change_name.php?id=" + index + "&newname=" + value + s,
+				type: 'GET',
+				success: function(transport) {
+
+					get_favoris();
+
+				},
+				error: function() {
+					alert('Error');
+				}
+			});
+
+
+		}
+
+		function dossier_vol_show_html_from_favoris(from) {
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+
+			jQuery.ajax({
+				url: "./favoris_to_recent.php?id=" + from + s,
+				type: 'GET',
+				success: function(transport) {
+
+					get_recents();
+
+					toAjaxRequest("./dossier_personnalise_show_html.php?id_recent_ordre=1&id=" + from + "&origine=favoris", "");
+				},
+				error: function() {
+					alert('Error');
+				}
+			});
+		}
+
+		function dossier_vol_show_html_from_recents(from, id) {
+
+
+			toAjaxRequest("./dossier_personnalise_show_html.php?id_recent_ordre=" + from + "&id=" + id + "&origine=recents", "");
+		}
+
+		function dossier_vol_show_html() {
+
+		}
+
+
+		function changeoaci() {
+
+			var value = "<div id='tabshow'><table  width='100%' CELLPADDING='0' CELLSPACING='0'>";
+			value += "<tr><td>";
+			value += "<table  width='100%' border='0' cellspacing='0' cellpadding='0'>";
+			value += "<tr>";
+
+			value += "<td height='40' colspan='2' align='center' >";
+			value += "<span class='texte4' ";
+			value += " ";
+			value += "  ";
+			value += ">";
+			value += "Codes OACI : ";
+			value += "</span>";
+			value += "<input  READONLY onmouseout='UnTip();' onmouseover=\"Tip('Choisissez votre aérodrome préférée', BALLOON, true, ABOVE,true,OFFSETX,0,OFFSETY,10,CENTERMOUSE,true);\" onclick=\"recherche_station('aero2',false,ajax_validMessage);return false;\" type='text' name='aero2' id='aero2' style='text-transform: uppercase;'	class='inputIdentification' value=\"" + aeroport_prefere.oaci + "\"/>";
+
+			value += "<div id='loading' style='display:none'><img src='ressources/images/picto/loader.gif'>Loading...</div>";
+			value += "</td>";
+
+			value += "</tr></table></td></tr>";
+			value += "</table></div>";
+			jQuery('#tabshow').replaceWith(value);
+
+
+		}
+
+
+
+		function ajax_validMessage() {
+			var url = "showmessage.php";
+			if (jQuery('#aero2').get(0)) var parametres = "code=" + jQuery('#aero2').val();
+			else var parametres = "code=" + aeroport_prefere.oaci;
+
+			jQuery.ajax({
+				url: url,
+				type: 'GET',
+				data: parametres,
+				success: function(transport) {
+					var response = transport;
+					jQuery('#tabshow').attr('innerHTML', response);
+					jQuery('#showspan').attr('innerHTML', jQuery('#hidden').val());
+
+					aeroport_prefere.oaci = jQuery('#hidden').val();
+					aeroport_prefere.lon = document.getElementById('lon_message').value;
+					aeroport_prefere.lat = document.getElementById('lat_message').value;
+
+					if (map && document.getElementById('lon_message') && document.getElementById('lat_message')) {
+						gotoStation(document.getElementById('lon_message').value, document.getElementById('lat_message').value)
+					}
+				},
+				error: function() {
+					alert("Erreur");
+				},
+				complete: function() {
+					jQuery('#loading').hide();
+				},
+				beforeSend: function() {
+					jQuery('#loading').show();
+				}
+			});
+		}
+
+		function showEffect(id, under) {
+
+
+
+			//var t= ['idcartes_aerologiques','idcartes','idimages','idmessages','idmaa','idmessages_sigmet','metcartereg','metcartesousreg','metcartedep','metcartesousdep','metcartevfr','metcartesousvfr','metcarte_radio_sondage','metcartesous_radio_sondage'];
+			var t = ['idcartes_aerologiques', 'idcartes', 'idimages', 'idmessages', 'idmaa', 'idmessages_sigmet', 'metcartevfr', 'metcartesousvfr', 'metcarte_radio_sondage', 'metcartesous_radio_sondage'];
+
+			for (i = 0; i < t.length; i++) {
+				var code = t[i];
+				if (code == id || code == under) continue;
+
+				if (jQuery('#' + code).get(0)) {
+					var disp = jQuery('#' + code).css('display');
+					if (disp != 'none') {
+						jQuery('#' + code).toggle('blind', 'slow');
+					}
+
+
+				}
+
+			}
+
+
+
+			jQuery('#' + id).toggle('blind', 'slow');
+
+			jQuery("#img_gaffor").maphilight();
+
+			if (under != null) {
+				jQuery('#' + under).toggle('blind', 'slow');
+			}
+		}
+
+		function validmaa3() {
+			var parametres = 'mode=html&codes=' + jQuery('#maa3').val().toUpperCase();
+			var url = 'bulletin_maa.php';
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/synaps_aero.css');
+			document.getElementsByTagName('head')[0].appendChild(flink);
+			toAjaxRequest(url, parametres);
+		}
+
+		function validMessages3() {
+			var parametres = 'mode=html&codes=' + jQuery('#aero3').val().toUpperCase();
+			var url = 'affichemessages.php';
+			toAjaxRequest(url, parametres);
+		}
+
+		function validMessages3_sigmet() {
+			var parametres = 'mode=html&codes=' + jQuery('#sigmet3').val().toUpperCase();
+			var url = 'affichemessages_sigmet.php';
+			toAjaxRequest(url, parametres);
+		}
+
+		function toDossPre() {
+			var d = new Date();
+			var s = "time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			var parametres = s;
+
+			var url = 'dossiers_pre-etablis.php';
+			toAjaxRequest(url, parametres);
+		}
+
+		function toTactique(indicatif) {
+			if (indicatif == null) {
+				indicatif = jQuery('#selreg').val();
+			}
+			if (indicatif == "") return;
+			var parametres = 'mode=html&code=' + indicatif;
+			var url = 'bulletin_tactique.php';
+			jQuery('#selreg').val(indicatif);
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/synaps_aero.css');
+			document.getElementsByTagName('head')[0].appendChild(flink);
+			toAjaxRequest(url, parametres);
+		}
+
+		function toRadiosondage(indicatif) {
+			if (indicatif == null) {
+				indicatif = jQuery('#selreg_radio_sondage').val();
+			}
+			var d = new Date();
+			var s = "time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+
+			var parametres = '?' + s + '&indicatif=' + indicatif + '&' + s + "&language=fr";
+			//var url='carte_radiosondage.php';
+			var url = 'anim_radio_sondage_observe.php' + parametres;
+			jQuery('#selreg_radio_sondage').val(indicatif);
+
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat(url);
+
+		}
+
+		function toRadiosondage_prevu(indicatif) {
+
+
+			if (indicatif == null) {
+				indicatif = jQuery('#selreg_radio_sondage').val();
+			}
+
+			if (indicatif == 'france' ||
+				indicatif == 'Herstmonceux' ||
+				indicatif == 'Lille' ||
+				indicatif == 'Amiens' ||
+				indicatif == 'Epernay' ||
+				indicatif == 'Nancy' ||
+				indicatif == 'Stuttgart' ||
+				indicatif == 'Epinal' ||
+				indicatif == 'Colmar' ||
+				indicatif == 'Trappes' ||
+				indicatif == 'Rennes' ||
+				indicatif == 'Brest' ||
+				indicatif == 'Poitiers' ||
+				indicatif == 'Bourges' ||
+				indicatif == 'Beaune' ||
+				indicatif == 'Milan' ||
+				indicatif == 'Chambery' ||
+				indicatif == 'Lyon' ||
+				indicatif == 'Saint-Flour' ||
+				indicatif == 'Cahors' ||
+				indicatif == 'Bordeaux' ||
+				indicatif == 'Santander' ||
+				indicatif == 'Saint-Girons' ||
+				indicatif == 'Nimes' ||
+				indicatif == 'Gap' ||
+				indicatif == 'Ajaccio' ||
+				indicatif == 'Payerne' ||
+				indicatif == 'Biarritz' ||
+				indicatif == 'Auch' ||
+				indicatif == 'Perpignan' ||
+				indicatif == 'Florac' ||
+				indicatif == 'Vichy' ||
+				indicatif == 'Manosque' ||
+				indicatif == 'Orleans' ||
+				indicatif == 'Chaumont ' ||
+				indicatif == 'Alencon' ||
+				indicatif == 'Rouen'
+			) {
+				jQuery('#carte_radiosondage_id').attr('src', 'ressources/images/background/carte_radio_sondage.gif');
+				jQuery('#carte_radiosondage_id').attr('useMap', '#map_radio_sondage');
+				if (indicatif == 'france') return;
+			}
+			if (indicatif == 'ocean_indien' ||
+				indicatif == 'La Réunion' ||
+				indicatif == 'Maurice' ||
+				indicatif == 'Gillot' ||
+				indicatif == 'Ivato' ||
+				indicatif == 'Seychelles'
+			) {
+
+				jQuery('#carte_radiosondage_id').attr('src', 'ressources/images/background/carte_radio_sondage_reunion.gif');
+				jQuery('#carte_radiosondage_id').attr('useMap', '#map_radio_sondage_reunion');
+				if (indicatif == 'ocean_indien') return;
+			}
+			if (indicatif == 'caledonie' ||
+				indicatif == 'Noumea' ||
+				indicatif == 'Mont Dzumac' ||
+				indicatif == 'Mont Mou' ||
+				indicatif == 'La Ouenghi' ||
+				indicatif == 'Ouatom' ||
+				indicatif == 'Poe'
+			) {
+
+				jQuery('#carte_radiosondage_id').attr('src', 'ressources/images/background/carte_radio_sondage_caledonie.gif');
+				jQuery('#carte_radiosondage_id').attr('useMap', '#map_radio_sondage_caledonie');
+				if (indicatif == 'caledonie') return;
+			}
+			if (indicatif == 'Tahiti' || indicatif == 'Faaa' || indicatif == 'Rapa' || indicatif == 'Hiva Oa' || indicatif == 'Mangareva') {
+
+				jQuery('#carte_radiosondage_id').attr('src', 'ressources/images/background/carte_radio_sondage_tahiti.gif');
+				jQuery('#carte_radiosondage_id').attr('useMap', '#map_radio_sondage_tahiti');
+				if (indicatif == 'Tahiti') return;
+			}
+			if (indicatif == 'Guyane' || indicatif == 'Cayenne-Matoury') {
+
+				jQuery('#carte_radiosondage_id').attr('src', 'ressources/images/background/carte_radio_sondage_guyane.gif');
+				jQuery('#carte_radiosondage_id').attr('useMap', '#map_radio_sondage_guyane');
+				if (indicatif == 'Guyane') return;
+
+			}
+			if (indicatif == 'Guadeloupe' || indicatif == 'Le Raizet') {
+
+				jQuery('#carte_radiosondage_id').attr('src', 'ressources/images/background/carte_radio_sondage_guadeloupe.gif');
+				jQuery('#carte_radiosondage_id').attr('useMap', '#map_radio_sondage_guadeloupe');
+				if (indicatif == 'Guadeloupe') return;
+
+			}
+			var d = new Date();
+			var s = "time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+
+			var parametres = '?' + s + '&indicatif=' + indicatif + '&' + s + "&language=fr";
+
+			var url = 'anim_radio_sondage_prevu.php' + parametres;
+			jQuery('#selreg_radio_sondage').val(indicatif);
+
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat(url);
+
+		}
+
+
+		function toVfr(valeur) {
+			if (valeur == null) {
+				var valeur = jQuery('#selvfr').val();
+
+			} else {
+				jQuery('#selvfr').val(valeur);
+			}
+			if (valeur == "") return;
+
+			if (valeur == 'france' || (valeur >= 20 && valeur <= 38) || (valeur >= 44 && valeur <= 66) || (valeur >= 70 && valeur <= 79) || (valeur >= 85 && valeur <= 94)) {
+				jQuery('#img_gaffor').attr('src', 'ressources/images/background/cartevfr.jpg');
+				jQuery('#img_gaffor').attr('useMap', "#cartevfr");
+				jQuery("#img_gaffor").maphilight();
+				if (valeur == 'france') return;
+			} else
+			if (valeur == 'caledonie' || valeur == 'vfr01' || valeur == 'vfr02' || valeur == 'vfr03' || valeur == 'vfr04' || valeur == 'vfr05') {
+				jQuery('#img_gaffor').attr('src', 'ressources/images/background/cartevfr_caledonie.jpg');
+				jQuery('#img_gaffor').attr('useMap', "#cartevfr_caledonie");
+				jQuery("#img_gaffor").maphilight();
+				if (valeur == 'caledonie') return;
+				//toAjaxRequest('gafor_under_construction.php', '' );return;
+			}
+
+
+
+
+			parametres = "mode=html&code=" + valeur;
+			var url = 'bulletin_gaffogafor.php';
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/synaps_aero.css');
+			document.getElementsByTagName('head')[0].appendChild(flink);
+			toAjaxRequest(url, parametres);
+		}
+
+
+		function recherche_station(id, multiple, fct) {
+			if (multiple == true) muultiple = 'true';
+			else multiple = 'false';
+			showPopWin("recherche_station.php?id=" + id + "&multiple=" + multiple, 450, 300, fct, true, "Recherche station");
+		}
+
+		function recherche_station_with_lat_lon(id, id_coord, multiple, fct) {
+			if (multiple == true) muultiple = 'true';
+			else multiple = 'false';
+			showPopWin("recherche_station_with_lat_lon.php?id=" + id + "&id_coord=" + id_coord + "&multiple=" + multiple, 450, 300, fct, true, "Recherche station");
+		}
+
+		function recherche_fir(id, multiple, fct) {
+
+			if (multiple == true) multiple = 'true';
+			else multiple = 'false';
+			showPopWin("recherche_fir.php?id=" + id + "&multiple=" + multiple, 400, 300, fct, true, "Recherche FIR");
+
+
+
+
+		}
+
+		function toFinLocal(valeur) {
+
+			var dep_ok= new Array();
+dep_ok["04"]="FUFR04|LFML";dep_ok["05"]="FUFR04|LFML";dep_ok["06"]="FUFR04|LFML";dep_ok["18"]="FUFR41|LFPB";dep_ok["25"]="FUFR67|LFST";dep_ok["28"]="FUFR75|LFPB";dep_ok["33"]="FUFR33|LFBD";dep_ok["35"]="FUFR35|LFRN";dep_ok["36"]="FUFR41|LFPB";dep_ok["37"]="FUFR41|LFPB";dep_ok["38"]="FUFR73|LFLY";dep_ok["39"]="FUFR67|LFST";dep_ok["41"]="FUFR41|LFPB";dep_ok["45"]="FUFR41|LFPB";dep_ok["54"]="FUFR67|LFST";dep_ok["55"]="FUFR67|LFST";dep_ok["57"]="FUFR67|LFST";dep_ok["59"]="FUFR59|LFQQ";dep_ok["62"]="FUFR59|LFQQ";dep_ok["67"]="FUFR67|LFST";dep_ok["68"]="FUFR67|LFST";dep_ok["69"]="FUFR69|LFLY";dep_ok["70"]="FUFR67|LFST";dep_ok["73"]="FUFR73|LFLY";dep_ok["74"]="FUFR73|LFLY";dep_ok["75"]="FUFR75|LFPB";dep_ok["77"]="FUFR75|LFPB";dep_ok["78"]="FUFR75|LFPB";dep_ok["83"]="FUFR04|LFML";dep_ok["84"]="FUFR04|LFML";dep_ok["88"]="FUFR67|LFST";dep_ok["90"]="FUFR67|LFST";dep_ok["91"]="FUFR75|LFPB";dep_ok["92"]="FUFR75|LFPB";dep_ok["93"]="FUFR75|LFPB";dep_ok["94"]="FUFR75|LFPB";dep_ok["95"]="FUFR75|LFPB";
+
+			if (valeur == null) {
+				var valeur = jQuery('#seldep').val();
+			}
+			//if (! dep_ok.get(valeur) ) return;
+			if (!dep_ok[valeur]) return;
+
+
+			jQuery('#seldep').value = valeur;
+			parametres = "mode=html&code=" + dep_ok[valeur];
+			var url = 'bulletin_finlocal.php';
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/synaps_aero.css');
+			document.getElementsByTagName('head')[0].appendChild(flink);
+			toAjaxRequest(url, parametres);
+
+
+
+
+
+
+		}
+
+		function set_region_vav_for_rap_aero(num_region, region, num_zone, zone) {
+
+			var d = jQuery('#vav_consulte > ul #vav_r_' + num_region + " > ul");
+			if (!d.get(0)) {
+				var d = jQuery('#vav_consulte > ul');
+				d.append("<li id='vav_r_" + num_region + "'>Région " + region + "<ul></ul></li>");
+				var d = jQuery('#vav_consulte > ul #vav_r_' + num_region + " > ul");
+			}
+			var z = jQuery('#vav_consulte > ul #vav_r_' + num_region + " > ul > #vav_z_" + num_zone);
+			if (!z.get(0)) {
+				d.append("<li id='vav_z_" + num_zone + "'>Zone " + zone + "</li>");
+				var data = {};
+				data.alwaysOn = true;
+				jQuery('#zone_vav_' + num_zone).data('maphilight', data).trigger('alwaysOn.maphilight');
+			} else {
+
+				z.remove();
+				var data = {};
+				data.alwaysOn = false;
+				jQuery('#zone_vav_' + num_zone).data('maphilight', data).trigger('alwaysOn.maphilight');
+				if (jQuery('#vav_consulte > ul #vav_r_' + num_region + " > ul > li").length == 0) jQuery('#vav_consulte > ul #vav_r_' + num_region).remove()
+
+			}
+		}
+
+
+
+		function to_contact() {
+			//under_contruction();
+			//return;
+			jQuery('#menu_droit').css('display', 'none');
+			jQuery('#centre').width(750);
+			jQuery('#centre').css('paddingTop', '50px');
+			open("#debut_page", "_self");
+			if (map) {
+				map.destroy();
+				map = null;
+			}
+
+
+			jQuery('#centrebody').attr('innerHTML', '');
+
+
+			var temps = new Date();
+			var ms = temps.getMilliseconds();
+			var min = temps.getMinutes();
+			var sec = temps.getSeconds();
+
+			var tempo = min + sec + ms;
+
+
+
+
+			//on charge le style
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/contact_aero.css?' + tempo);
+			document.getElementsByTagName('head')[0].appendChild(flink);
+
+
+
+
+
+
+			jQuery.ajax({
+				url: "contact.php",
+				type: 'GET',
+
+
+				success: function(transport) {
+
+					var response = transport;
+					jQuery('#centrebody').attr('innerHTML', response);
+
+
+
+				},
+				error: function() {
+					alert("Erreur");
+				},
+				complete: function() {
+					setTimeout("cacheWaiting()", 100);
+
+				},
+				beforeSend: function() {
+					busyProcess();
+				}
+			});
+
+		}
+
+		function to_rapp_vol() {
+			//under_contruction();
+			//return;
+			jQuery('#menu_droit').css('display', 'none');
+			jQuery('#centre').width(750);
+			jQuery('#centre').css('paddingTop', '50px');
+			open("#debut_page", "_self");
+			if (map) {
+				map.destroy();
+				map = null;
+			}
+
+
+			jQuery('#centrebody').attr('innerHTML', '');
+
+
+			var temps = new Date();
+			var ms = temps.getMilliseconds();
+			var min = temps.getMinutes();
+			var sec = temps.getSeconds();
+
+			var tempo = min + sec + ms;
+
+
+
+
+			//on charge le style
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/contact_aero.css?' + tempo);
+			document.getElementsByTagName('head')[0].appendChild(flink);
+
+			jQuery.ajax({
+				url: "rapport_vol.php",
+				type: 'GET',
+
+
+				success: function(transport) {
+
+					var response = transport;
+					jQuery('#centrebody').attr('innerHTML', response);
+
+
+
+				},
+				error: function() {
+					alert("Erreur");
+				},
+				complete: function() {
+					setTimeout("cacheWaiting()", 100);
+
+				},
+				beforeSend: function() {
+					busyProcess();
+				}
+			});
+
+		}
+
+		function to_rapp_meteo() {
+			jQuery('#menu_droit').css('display', 'none');
+			jQuery('#centre').width(750);
+			jQuery('#centre').css('paddingTop', '50px');
+			open("#debut_page", "_self");
+			if (map) {
+				map.destroy();
+				map = null;
+			}
+
+			jQuery('#centrebody').attr('innerHTML', "");
+
+
+
+
+			var temps = new Date();
+			var ms = temps.getMilliseconds();
+			var min = temps.getMinutes();
+			var sec = temps.getSeconds();
+
+			var tempo = min + sec + ms;
+
+
+
+			// on charge le script ...
+			var fscript = document.createElement("script");
+			fscript.setAttribute("type", "text/javascript");
+			fscript.setAttribute("src", './js/rapportmeteo.js?' + tempo);
+			document.getElementsByTagName('head')[0].appendChild(fscript);
+
+
+
+			//on charge le style
+			var flink = document.createElement("link");
+			flink.setAttribute("rel", "stylesheet");
+			flink.setAttribute("type", "text/css");
+			flink.setAttribute("href", './ressources/rapport_meteo.css?' + tempo);
+			document.getElementsByTagName('head')[0].appendChild(flink);
+
+
+
+			jQuery.ajax({
+				url: "rapport_meteo.php",
+				type: 'GET',
+
+
+				success: function(transport) {
+
+					var response = transport;
+
+
+					jQuery('#centrebody').attr('innerHTML', response);
+
+				},
+				error: function() {
+					alert("Erreur");
+				},
+				complete: function() {
+					setTimeout("cacheWaiting()", 100);
+
+
+											jQuery("#date_debut").datepicker({
+							maxDate: '+0D',
+							dateFormat: 'dd/mm/yy',
+							dayNamesMin: ['D', 'L', 'M', 'M', 'J', 'V', 'S'],
+							monthNames: ['Janvier', 'février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+						});
+						jQuery("#date_fin").datepicker({
+							maxDate: '+0D',
+							dateFormat: 'dd/mm/yy',
+							dayNamesMin: ['D', 'L', 'M', 'M', 'J', 'V', 'S'],
+							monthNames: ['Janvier', 'février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+						});
+					
+
+
+
+
+
+				},
+				beforeSend: function() {
+					busyProcess();
+				}
+			});
+
+
+
+
+
+
+
+		}
+
+		function after_date_debut_close() {
+
+
+			if (jQuery('#date_debut').get(0) && jQuery('#date_fin').get(0)) {
+				if (jQuery('#date_debut').val() > jQuery('#date_fin').val()) jQuery('#date_fin').val(jQuery('#date_debut').val());
+
+
+			}
+
+		}
+
+		function after_date_fin_close() {
+
+			if (jQuery('#date_debut').get(0) && jQuery('#date_fin').get(0)) {
+				if (jQuery('#date_fin').val() < jQuery('#date_debut').val()) jQuery('#date_fin').css('backgroundColor', 'red');
+				else jQuery('#date_fin').css('backgroundColor', '');
+
+			}
+		}
+		var thenum_vav = 0;
+
+		function affiche_bulletin_zone_vav(echeance, zone) {
+			if (zone != 0) thenum_vav = zone;
+			if (thenum_vav != 0) {
+				jQuery('div[id^="bulletin_zone_vav_"]').css('display', 'none');
+				jQuery('#bulletin_zone_vav_' + thenum_vav).css('display', 'block');
+
+				jQuery.ajax({
+					url: "cartes_vav_log.php",
+					type: 'GET',
+					data: 'echeance=' + echeance + '&zone=' + thenum_vav,
+					success: function(transport) {
+
+
+						jQuery('#bulletin_zone_content_vav' + thenum_vav).html(transport);
+						//return newwindow('affichevav.php?zones=".$zone->num."');
+						jQuery('#bulletin_zone_vav_imprim' + thenum_vav).html("<a target='_blank' onclick='return affiche_vav(" + thenum_vav + ");'  href=''><img border='0' src='./ressources/images/picto/imprimante.gif' alt=''></a>");
+						//"<a target=\"_blank\" ' onclick=\"return newwindow('affichevav.php?zones=".$zone->num."');\"  href=\"\"><img border=\"0\" src=\"./ressources/images/picto/imprimante.gif\" alt=\"\"></a>";
+					},
+					error: function() {},
+					complete: function() {}
+				});
+			}
+		}
+
+		function affiche_vav(zone) {
+			return newwindow("affichevav.php?zones=" + zone);
+		}
+
+		function gocartevav(echeance, fromMenu) {
+			jQuery('#menu_droit').css('display', 'none');
+			jQuery('#centre').width(750);
+			jQuery('#centre').css('paddingTop', '50px');
+
+			if (fromMenu) thenum_vav = 0;
+
+			if (map) {
+				map.destroy();
+				map = null;
+			}
+
+			var temps = new Date();
+			var ms = temps.getMilliseconds();
+			var min = temps.getMinutes();
+			var sec = temps.getSeconds();
+
+			var tempo = min + '-' + sec + '-' + ms;
+
+			jQuery('#centrebody').attr('innerHTML', "");
+
+			jQuery.ajax({
+				url: "cartes_vav.php",
+				type: 'GET',
+				data: 'echeance=' + echeance + '&time=' + tempo,
+
+				success: function(transport) {
+					var response = transport;
+					jQuery('#centrebody').attr('innerHTML', response);
+				},
+
+				error: function() {
+					alert("Erreur");
+				},
+
+				complete: function() {
+					if (jQuery('#id_map_vav').hasClass('maphilighted') != true) {
+						jQuery('#id_map_vav').maphilight();
+					}
+					affiche_bulletin_zone_vav(echeance, 0);
+					setTimeout("cacheWaiting()", 100);
+				},
+
+				beforeSend: function() {
+					busyProcess();
+				}
+			});
+		}
+
+		function to_sw() {
+			var parametres = 'mode=html';
+			var url = 'sw.php';
+			toAjaxRequest(url, parametres);
+		}
+
+		function to_grande_carte() {
+			jQuery('#menu_droit').css('display', 'none');
+			jQuery('#centre').width(750);
+			jQuery('#centre').css('paddingTop', '50px');
+			open("#debut_page", "_self");
+
+			var reseau = "";
+			if (jQuery('#reseau_last').get(0) && jQuery('#reseau_last').attr('checked') == true) reseau = jQuery('#reseau_last').val();
+			else if (jQuery('#reseau_1').get(0) && jQuery('#reseau_1').attr('checked') == true) reseau = jQuery('#reseau_1').val();
+			else if (jQuery('#reseau_2').get(0) && jQuery('#reseau_2').attr('checked') == true) reseau = jQuery('#reseau_2').val();
+			else if (jQuery('#reseau_3').get(0) && jQuery('#reseau_3').attr('checked') == true) reseau = jQuery('#reseau_3').val();
+			else if (jQuery('#reseau_4').get(0) && jQuery('#reseau_4').attr('checked') == true) reseau = jQuery('#reseau_4').val();
+			else if (jQuery('#reseau_5').get(0) && jQuery('#reseau_5').attr('checked') == true) reseau = jQuery('#reseau_5').val();
+			else if (jQuery('#reseau_6').get(0) && jQuery('#reseau_6').attr('checked') == true) reseau = jQuery('#reseau_6').val();
+
+
+
+
+			if (map) {
+
+				map.destroy();
+				map = null;
+			}
+
+
+			jQuery('#centrebody').attr('innerHTML', "");
+
+
+
+			jQuery.ajax({
+				url: "messaero.php",
+				type: 'GET',
+				data: 'reseau=' + reseau + '&param_opemet=' + param_opemet + '&link_to=grande_carte',
+
+				success: function(transport) {
+
+					var response = transport;
+
+					jQuery('#centrebody').attr('innerHTML', response);
+					jQuery('#map').height(600);
+					jQuery('#map').width(748);
+
+					my_init(center_map, zoom_map);
+
+
+				},
+				error: function() {
+					alert("Erreur");
+				}
+
+			});
+
+
+
+		}
+		/* * * * */
+		function goCartesAnim_front(width, height, layer, prof_avant) {
+
+
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat("anim_carte_front.php?tt=xxx&width=" + width + "&height=" + height + "&layer=" + layer + "&prof_avant=" + prof_avant);
+
+		}
+		/* * * * */
+		function goCartesAnim_isp(width, height, layer, prof_avant) {
+
+
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat("anim_carte_isp.php?tt=xxx&width=" + width + "&height=" + height + "&layer=" + layer + "&prof_avant=" + prof_avant);
+
+		}
+		/* * * * */
+		function goCartesAnim_aerologique(id_carte, echeance, domaine_id, level, top, left, width, height) {
+
+
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat("anim_carte_aerologique.php?domaine=" + domaine_id + "&type_image=" + id_carte + '&echeance=' + echeance + '&level=' + level + '&top=' + top + '&left=' + left + '&width=' + width + '&height=' + height);
+			return false;
+		}
+		/* * * * */
+		function goCartesAnim(id_carte, echeance, domaine_id, fly_level, top, left, width, height) {
+
+			if (jQuery('#choix_type_anim_niveau').attr('checked') == true) {
+				goCartesAnimniveau(id_carte, echeance, domaine_id, fly_level, top, left, width, height);
+				return false;
+			}
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat("anim_carte.php?domaine=" + domaine_id + "&type_image=" + id_carte + '&echeance=' + echeance + '&fly_level=' + fly_level + '&top=' + top + '&left=' + left + '&width=' + width + '&height=' + height);
+			return false;
+		}
+		/* * * * */
+		function goCartesAnimniveau(id_carte, echeance, domaine_id, fly_level, top, left, width, height) {
+			if (jQuery('#choix_type_anim_echeance').attr('checked') == true) {
+				goCartesAnim(id_carte, echeance, domaine_id, fly_level, top, left, width, height);
+				return false;
+			}
+			stop_anim_demande = true;
+			cpt_image_anim = 0;
+			to_anim_sat("anim_carte_niveau.php?domaine=" + domaine_id + "&type_image=" + id_carte + '&echeance=' + echeance + '&fly_level=' + fly_level + '&top=' + top + '&left=' + left + '&width=' + width + '&height=' + height);
+			return false;
+		}
+		/* * * * */
+		function to_anim_sat(url) {
+
+			var d = new Date();
+			var s = "&time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			url += s;
+
+
+
+
+
+
+			jQuery('#menu_droit').css('display', 'none');
+			jQuery('#centre').width(750);
+			jQuery('#centre').css('paddingTop', '50px');
+			open("#debut_page", "_self");
+
+
+
+
+			if (map) {
+
+				map.destroy();
+				map = null;
+			}
+
+			jQuery('#centrebody').attr('innerHTML', "");
+
+
+
+			jQuery.ajax({
+				url: url,
+				type: 'GET',
+				success: function(transport) {
+
+					var response = transport;
+
+					jQuery('#centrebody').attr('innerHTML', response);
+					q = null;
+					if (url.startsWith('anim_sat.php')) {
+
+
+						jQuery("#range_opacity").val(jQuery("img[id^='anim_wait']").css('opacity') * 100);
+
+
+					}
+				},
+				error: function() {
+					alert("Erreur");
+				},
+
+				complete: function() {
+					setTimeout("cacheWaiting()", 100);
+				},
+				beforeSend: function() {
+					busyProcess();
+				}
+
+			});
+
+
+
+		}
+
+		function to_petite_carte() {
+
+			jQuery('#menu_droit').css('display', 'block');
+			jQuery('#centre').width(452);
+			jQuery('#centre').css('paddingTop', '0px');
+			open("#debut_page", "_self");
+			var reseau = "";
+			if (jQuery('#reseau_last').get(0) && jQuery('#reseau_last').attr('checked') == true) reseau = jQuery('#reseau_last').val();
+			else if (jQuery('#reseau_1').get(0) && jQuery('#reseau_1').attr('checked') == true) reseau = jQuery('#reseau_1').val();
+			else if (jQuery('#reseau_2').get(0) && jQuery('#reseau_2').attr('checked') == true) reseau = jQuery('#reseau_2').val();
+			else if (jQuery('#reseau_3').get(0) && jQuery('#reseau_3').attr('checked') == true) reseau = jQuery('#reseau_3').val();
+			else if (jQuery('#reseau_4').get(0) && jQuery('#reseau_4').attr('checked') == true) reseau = jQuery('#reseau_4').val();
+			else if (jQuery('#reseau_5').get(0) && jQuery('#reseau_5').attr('checked') == true) reseau = jQuery('#reseau_5').val();
+			else if (jQuery('#reseau_6').get(0) && jQuery('#reseau_6').attr('checked') == true) reseau = jQuery('#reseau_6').val();
+
+
+			if (!zoom_map) zoom_map = 8;
+			if (!center_map) center_map = new OpenLayers.LonLat(aeroport_prefere.lon, aeroport_prefere.lat)
+
+
+			if (map) {
+
+				map.destroy();
+				map = null;
+			}
+			jQuery('#centrebody').attr('innerHTML', "");
+
+			jQuery.ajax({
+				url: "dossier_personnalise.php",
+				method: 'GET',
+
+
+				success: function(transport) {
+
+					var response = transport;
+					jQuery('#centrebody').attr('innerHTML', response);
+
+					jQuery.ajax({
+						url: "messaero.php",
+						type: 'GET',
+						data: 'reseau=' + reseau + '&param_opemet=' + param_opemet + '&link_to=petite_carte',
+
+						success: function(transport) {
+
+
+							jQuery('#centrebody').attr('innerHTML', jQuery('#centrebody').attr('innerHTML') + transport);
+							jQuery('#map').height(359);
+							jQuery('#map').width(450);
+
+							my_init(center_map, zoom_map);
+
+
+
+
+
+						},
+						error: function() {
+							alert("Erreur");
+						}
+					});
+
+
+				},
+				error: function() {
+					alert("Erreur");
+				}
+
+			});
+
+
+
+		}
+
+		function under_contruction() {
+			toAjaxRequest('under_construction.php', '', '');
+		}
+
+		function toAjaxRequest(url, parametres, method) {
+
+			if (!method) method = 'GET';
+			var d = new Date();
+			var s = "time=";
+			s += d.getDate();
+			s += d.getMonth();
+			s += d.getYear();
+			s += d.getHours();
+			s += d.getMinutes();
+			s += d.getSeconds();
+			s += d.getMilliseconds();
+			if (parametres == "") parametres += s;
+			else parametres += "&" + s;
+			if (map) {
+				map.destroy();
+				map = null;
+			}
+
+
+			jQuery('#centrebody').attr('innerHTML', "");
+
+			jQuery('#menu_droit').css('display', 'block');
+			jQuery('#centre').width(452);
+			jQuery('#centre').css('paddingTop', '0px');
+			open("#debut_page", "_self");
+			jQuery.ajax({
+				url: url,
+				type: method,
+				data: parametres,
+
+				success: function(transport) {
+
+
+					jQuery('#centrebody').attr('innerHTML', transport);
+
+				},
+				error: function() {
+					alert("Erreur");
+				},
+				complete: function() {
+					setTimeout("cacheWaiting()", 100);
+				},
+				beforeSend: function() {
+					busyProcess();
+				}
+			});
+
+		}
+
+
+
+		function busyProcess() {
+
+
+
+			jQuery('#waiting').css('display', 'block');
+		}
+
+
+
+
+		function cacheWaiting() {
+
+			jQuery('#waiting').css('display', 'none');
+
+
+		}
+	</script>
+
+	<script type="text/javascript">
+		var aeroport_prefere={oaci:'LFED',lon:-2.9233333333333,lat:48.056944444444,zoom:8};
+
+		jQuery(function() {
+			jQuery("#ml").dialog({
+				width: 600,
+				height: 500,
+				modal: true,
+				autoOpen: false,
+				show: {
+					effect: "blind",
+					duration: 1000
+				},
+				hide: {
+					effect: "explode",
+					duration: 1000
+				}
+
+			});
+
+
+		});
+	</script>
+
+</head>
+
+
+<body onload=' get_type_carte_from_domaine(jQuery("#mdomaine").val());if (jQuery("#mdomaine_aerologique").get(0)) get_type_carte_from_domaine_aerologique($("mdomaine_aerologique").value); get_favoris();get_recents();to_petite_carte();init_aero3();init_localisation();'>
+
+	<script src="./js/wz_tooltip.js"></script>
+	<script src="./js/tip_balloon.js"></script>
+	<script src="./js/tip_centerwindow.js"></script>
+	<a name="debut_page"></a>
+
+	<div id="container">
+
+
+		
+	<div id="header">
+
+				 <a target='' href='#' id='logorf'  >
+				<img src='ressources/images/interface/logorf.jpg' >
+				</a>
+				<a target='' href='https://meteofrance.com/' id='logometeo'  >
+				<img src='ressources/images/interface/logometeo.jpg' >
+				</a>
+				<span id='title_header'>AEROWEB</span>
+				<table id='cartouche_vigilance' border='0'>
+				 <tr>
+				 <td>
+				<img id='vignette_vigi' title='Vigilance'   src='ressources/images/interface/masque_vide.png' alt='Vigilance'>
+				<a target='_blank' href='http://vigilance.meteofrance.com' id='masque_vigi'  >
+				<img  src='ressources/images/interface/masque_vide.png' >
+				</a>
+				 </td>
+				 <td >
+				 
+				 </td>
+				 </tr>
+				 </table><table border='1' id='menu_haut_commande'><tr><td>
+					<a href='javascript:to_petite_carte();' target='_self'>Accueil
+					</a>
+					</td>
+					<td>
+					<a href='preferences.php' target='_self'>Préférences
+					</a>
+					</td>
+					<td>
+					<a href='javascript:toAjaxRequest("./faq.php","");'>FAQ
+					</a>	
+					</td>
+					<td>
+					<a href='javascript:toAjaxRequest("./aide.php","");'>Aide et contact
+					</a>
+					</td>
+					<td>
+					<a href='deconnect.php' target='_self' >Se déconnecter
+					<img src="ressources/images/interface/lock.png"></a>
+					</td><td><img id='flag' onclick='tolangue();'	src='ressources/images/picto/anglais.gif'></td>
+					</tr></table></div>
+		<div class="gauche">
+
+			<div class='dvols'>
+			<div class='head'>
+				<table width='100%' height='100%' cellpadding='0'>
+					<tbody>
+						<tr align='center'>
+							<td valign='middle'>Actualités</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+			<div class='ombre'> </div>
+			<div class='nouvbody'><span class='spanniveau1' style='color:red; font-weight:normal; ' ><a href='' onclick='return false;' target='_new' style='color:red; font-weight:normal; '  >*  A partir du 20 janvier 2025, suite à l'arrêt du radar de Trappes (78) en vue de son remplacement, il existe un risque de sous-estimation des informations RADAR et ASPOC 3D pour les aéroports de la région parisienne. Nous vous prions de nous excuser pour la gêne occasionnée. </a></span><br></div></div>
+
+
+
+			<div class="dvols">
+				<div class="head">
+					<table width="100%" height='100%' cellpadding="0">
+						<tr align="center">
+							<td valign='middle'>Dossiers de vols							</td>
+						</tr>
+					</table>
+				</div>
+				<div class="ombre"></div>
+
+				<div class="dvolsbody">
+					<span class="spanniveau1"><a href="javascript:to_petite_carte();" title="">Dossier personnalisé						</a> </span><br> <span class="spanniveau1"> <a href="javascript:toDossPre();" style="cursor: pointer;" title="">Dossiers pré-établis						</a> </span>
+				</div>
+
+			</div>
+			<div class="metcarte">
+				<div class="metcartehead">
+					<table width="100%" height='100%' cellpadding="0">
+						<tr align="center">
+							<td valign='middle'>Météo à la carte							</td>
+						</tr>
+					</table>
+				</div>
+				<div class="ombre"></div>
+				<div class="metcartebody">
+					<span class="titreMessages">Messages					</span><br> <span class="spanniveau1"><a href="javascript:showEffect('idmessages',null);" target='_self' title="TAF/METAR/SIGMET/AIRMET/PREDEC/MAA">OPMETS						</a> </span><br>
+					<div class="metmessages" id="idmessages" style="width: 100%; overflow: hidden; display: none;">
+						<table border=0 style="width: 100%;">
+							<tr>
+								<td><span class="spansouscarte">OACI : </span>
+								</td>
+								<td><input onkeydown="if (event.keyCode==13) validMessages3();" onmouseout="UnTip();" onmouseover="Tip('Tapez ici un ou plusieurs code OACI séparés par un espace.', BALLOON, true, ABOVE,true,OFFSETX,0,OFFSETY,3,CENTERMOUSE,true);" type="text" style="text-transform: uppercase;" id="aero3" name="aero3" class="inputIdentification">
+								</td>
+								<td><img src="ressources/images/jumelle.gif" onclick="recherche_station('aero3',true);return false;"></td>
+							</tr>
+
+
+
+
+
+							<tr>
+								<td colspan=3><img style="cursor: pointer; margin-top: 5px;" onclick="validMessages3();" src="ressources/images/fr/valider.gif" alt="" border="0" align="middle" />
+								</td>
+
+
+							<tr>
+
+						</table>
+					</div>
+
+					<span class="spanniveau1"><a href="javascript:showEffect('idmessages_sigmet',null);" target='_self' title="">SIGMET...						</a> </span><br>
+
+
+
+
+					<div class="metmessages" id="idmessages_sigmet" style="width: 100%; overflow: hidden; display: none;">
+						<table border=0 style="width: 100%;">
+							<tr>
+								<td><span class="spansouscarte">OACI : 									</span>
+								</td>
+								<td><input onkeydown="if (event.keyCode==13) validMessages3_sigmet();" onmouseout="UnTip();" onmouseover="Tip('Tapez ici un ou plusieurs code OACI séparés par un espace.', BALLOON, true, ABOVE,true,OFFSETX,0,OFFSETY,3,CENTERMOUSE,true);" type="text" style="text-transform: uppercase;" id="sigmet3" name="sigmet3" class="inputIdentification">
+								</td>
+								<td><img src="ressources/images/jumelle.gif" onclick="recherche_fir('sigmet3',true);return false;"></td>
+							</tr>
+
+
+
+
+
+							<tr>
+								<td colspan=3><img style="cursor: pointer; margin-top: 5px;" onclick="validMessages3_sigmet();" src="ressources/images/fr/valider.gif" alt="" border="0" align="middle" />
+								</td>
+
+
+							<tr>
+
+						</table>
+					</div>
+
+
+
+
+
+
+					<!-- 
+					<span class="spanniveau1"><a
+						href='' onclick="return newfullwindow('/complementary/map_visi_plafond.php', 'visi_plafond');"
+						title="">Prévision visibilité et plafond					</a> </span>
+					 -->
+					<span class="spanniveau1"><a href="javascript:to_grande_carte();" title="">Carte METAR-TAF						</a> </span>
+
+					<br> <span class="spanniveau1"><a href="javascript:to_sw();" title="">Avis de météorologie de l'espace						</a> </span>
+
+					<!-- <div class="metcartefoot">-->
+					<br> <span class="titreMessages">Cartes et images					</span><br> <span class="spanniveau1"><a href="javascript:showEffect('idcartes',null);" target='_self' title="">TEMSI-WINTEM...						</a> </span><br>
+
+										<div class="metmessages" id="idcartes" style="display:none;">
+						<br>
+						
+<script type="text/javascript">
+function goCartes() {
+
+toAjaxRequest("affichecartes.php?domaine="+jQuery('#mdomaine').val()+"&niveau="+jQuery('#mniveau').val(),"");
+}
+function validAllCartes() 
+{
+	toAjaxRequest("affichecartes.php?domaine=19 20 4 22 21 18 27 28 26 44 31 32 33 34 35 37 38 36 25 24 23 39 40 43 30 13 8 9 14 16 15 12 7 17 3 6 29 10 5 11 1 2&niveau=","");
+}
+</script>
+
+<table width='100%'>
+
+
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Domaine :  </span></td>
+    <td  valign="middle" align='left' ><select style="width: 100px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:2px;" id="mdomaine" onchange='get_type_carte_from_domaine(this.value);'> <option selected value='19' >FRANCE</option><option title='EUROC' value='20' >EUROC</option><option title='EUR' value='4' >EUR</option><option title='ANTILLES' value='22' >ANTILLES</option><option title='ANTILLES GUYANE' value='21' >ANTILLES GUYANE</option><option title='ANTILLES-GUYANE-AMERIQUES' value='18' >ANTILLES-GUYANE-AMERIQUES</option><option title='ANTILLES-GUYANE-ATLANTIQUE' value='27' >ANTILLES-GUYANE-ATLANTIQUE</option><option title='GUYANE' value='28' >GUYANE</option><option title='MASCAREIGNES' value='26' >MASCAREIGNES</option><option title='NOUVELLE_CALEDONIE-AUSTRALIE' value='44' >NOUVELLE_CALEDONIE-AUSTRALIE</option><option title='NOUVELLE_CALEDONIE-JAPON' value='31' >NOUVELLE_CALEDONIE-JAPON</option><option title='NOUVELLE_CALEDONIE-MAGENTA' value='32' >NOUVELLE_CALEDONIE-MAGENTA</option><option title='NOUVELLE_CALEDONIE-NANDI_WALLIS' value='33' >NOUVELLE_CALEDONIE-NANDI_WALLIS</option><option title='NOUVELLE_CALEDONIE-NORFOLK' value='34' >NOUVELLE_CALEDONIE-NORFOLK</option><option title='NOUVELLE_CALEDONIE-NOUVELLE_ZELANDE' value='35' >NOUVELLE_CALEDONIE-NOUVELLE_ZELANDE</option><option title='NOUVELLE_CALEDONIE-SAIPAN' value='37' >NOUVELLE_CALEDONIE-SAIPAN</option><option title='NOUVELLE_CALEDONIE-TAHITI' value='38' >NOUVELLE_CALEDONIE-TAHITI</option><option title='NOUVELLE_CALEDONIE-WALLIS' value='36' >NOUVELLE_CALEDONIE-WALLIS</option><option title='PACIFIQUE EST' value='25' >PACIFIQUE EST</option><option title='PACIFIQUE OUEST' value='24' >PACIFIQUE OUEST</option><option title='POLYNESIE' value='23' >POLYNESIE</option><option title='TAHITI-HAWAI-JAPON' value='39' >TAHITI-HAWAI-JAPON</option><option title='TAHITI-EASTER_ISLAND-CHILI' value='40' >TAHITI-EASTER_ISLAND-CHILI</option><option title='TAHITI-POLYNESIE-FRANCAISE' value='43' >TAHITI-POLYNESIE-FRANCAISE</option><option title='AUSTRALIE' value='30' >AUSTRALIE</option><option title='ASIA (D)' value='13' >ASIA (D)</option><option title='ASIA SOUTH' value='8' >ASIA SOUTH</option><option title='ASIA SOUTH_MID' value='9' >ASIA SOUTH_MID</option><option title='EURAFI C' value='14' >EURAFI C</option><option title='EURSAM B' value='16' >EURSAM B</option><option title='EURSAM B1' value='15' >EURSAM B1</option><option title='INDOC E' value='12' >INDOC E</option><option title='MID G' value='7' >MID G</option><option title='NAMSAM A' value='17' >NAMSAM A</option><option title='NAT' value='3' >NAT</option><option title='NAT H' value='6' >NAT H</option><option title='NAT H Secours' value='29' >NAT H Secours</option><option title='NORTH PACIFIC M' value='10' >NORTH PACIFIC M</option><option title='PACIF I' value='5' >PACIF I</option><option title='PACIFIC F' value='11' >PACIFIC F</option><option title='SIO K' value='1' >SIO K</option><option title='SOUTH POLAR J' value='2' >SOUTH POLAR J</option></select></td>
+  </tr>
+  
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Type de cartes</span></td>
+    <td  valign="middle" align='left'> <select   id ="mtype_carte"  style="width: 100px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:5px;"  onchange="get_fly_level_from_domaine_and_chart(jQuery('#mdomaine').val(),this.value);"><option value='ggg'>mljmljk</option></select></td>
+  </tr>
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Niveau de vol:</span></td>
+    <td  valign="middle" align='left'> <select   id ="mniveau"  style="width: 100px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:5px;" ><option value='550' >FL 550</option><option value='530' >FL 530</option><option value='480' >FL 480</option><option value='450' >FL 450</option><option value='410' >FL 410</option><option value='390' >FL 390</option><option value='360' >FL 360</option><option value='340' >FL 340</option><option value='320' >FL 320</option><option value='300' >FL 300</option><option value='270' >FL 270</option><option value='240' >FL 240</option><option selected value='210' >FL 210</option><option value='180' >FL 180</option><option value='140' >FL 140</option><option value='100' >FL 100</option><option value='80' >FL 080</option><option value='50' >FL 050</option><option value='20' >FL 020</option></select></td>
+  </tr>
+
+
+
+
+
+</table>
+
+<table width='100%'>
+<tr valign="middle"  >
+<td  valign="middle"  align='right'  ><input type="radio" checked class="radio" id='choix_type_anim_echeance' name="choix_type_anim" value="1" /></td>
+<td  valign="middle" align='left'><span class="spansouscarte">Animation par échéances</span></td>
+</tr>
+<tr valign="middle"  >
+<td  valign="middle"  align='right'  ><input type="radio" class="radio" id='choix_type_anim_niveau' name="choix_type_anim" value="2" /></td>
+<td  valign="middle" align='left'><span class="spansouscarte">Animation par niveaux</span></td>
+</tr>
+</table>
+<img onclick="javascript:goCartesAnim(jQuery('#mtype_carte').val(),'',jQuery('#mdomaine').val(),jQuery('#mniveau').val(),'0px','0px','0px','0px');"  style="cursor: pointer;" src="ressources/images/fr/valider.gif" 	alt="" border="0" align="middle" /><br>
+<a href='' target='_self' onclick='validAllCartes();return false;' class='lien6'>Voir les cartes disponibles</a><br>	&nbsp;
+<script type="text/javascript">
+
+</script>					</div>
+
+
+
+					<span class="spanniveau1"><a href="javascript:showEffect('idimages',null);" target='_self' title="">Satellite et radar						</a> </span><br>
+
+
+					<div class="metmessages" id="idimages" style="display: none;">
+						<br>
+						
+<script type="text/javascript">
+function goImages() {
+
+
+stop_anim_demande=true;
+
+cpt_image_anim=0;
+
+to_anim_sat("anim_sat.php?domaine="+jQuery('#mdomaine_image').val()+"&type_image="+jQuery('#mtype_image').val());
+}
+
+function select_type_image_from_domaine()
+{
+var id_domaine= jQuery('#mdomaine_image');
+var id_type_image=jQuery('#mtype_image');
+
+var options_type_image = new Array();
+options_type_image[3]=new Array();
+options_type_image[3] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée', '3': 'radar'};
+options_type_image[2]=new Array();
+options_type_image[2] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée'};
+options_type_image[1]=new Array();
+options_type_image[1] ={'2': 'infrarouge'};
+options_type_image[5]=new Array();
+options_type_image[5] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée', '3': 'radar'};
+options_type_image[6]=new Array();
+options_type_image[6] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée', '3': 'radar'};
+options_type_image[11]=new Array();
+options_type_image[11] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée', '3': 'radar'};
+options_type_image[8]=new Array();
+options_type_image[8] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée', '3': 'radar'};
+options_type_image[10]=new Array();
+options_type_image[10] ={'4': 'visible', '2': 'infrarouge'};
+options_type_image[12]=new Array();
+options_type_image[12] ={'4': 'visible', '2': 'infrarouge'};
+options_type_image[13]=new Array();
+options_type_image[13] ={'4': 'visible', '2': 'infrarouge'};
+options_type_image[7]=new Array();
+options_type_image[7] ={'4': 'visible', '2': 'infrarouge', '3': 'radar'};
+options_type_image[9]=new Array();
+options_type_image[9] ={'4': 'visible', '2': 'infrarouge', '1': 'composition colorée'};
+options_type_image[4]=new Array();
+options_type_image[4] ={'2': 'infrarouge'};
+jQuery('#mtype_image option').remove();
+
+
+
+for (var i in  options_type_image[id_domaine.val()])
+{
+	
+	var oOption=document.createElement("OPTION");
+
+	id_type_image.attr('options').add(oOption);
+
+	oOption.innerHTML=options_type_image[id_domaine.val()][i];
+	oOption.value=i;	
+
+	
+}
+
+	
+
+
+
+}
+
+</script>
+
+<table width='100%'>
+
+
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Domaine :  </span></td>
+    <td  valign="middle" align='left' ><select onchange="select_type_image_from_domaine();" style="width: 120px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:2px;" id="mdomaine_image" > <option  selected  value='3' >France</option><option  value='2' >Europe</option><option  value='1' >Europe/Afrique/Amérique</option><option  value='5' >Guyane</option><option  value='6' >Martinique</option><option  value='11' >Nouvelle-Calédonie</option><option  value='8' >Guadeloupe</option><option  value='10' >Polynésie Française</option><option  value='12' >Tahiti</option><option  value='13' >Tahiti-US</option><option  value='7' >Réunion</option><option  value='9' >Saint-Pierre et Miquelon</option><option  value='4' >Monde</option></select></td>
+  </tr>
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Type: </span></td>
+    <td  valign="middle" align='left' ><select style="width: 120px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:2px;" id="mtype_image" > </select></td>
+  </tr>
+</table>
+
+
+<img onclick="javascript:goImages();"  style="cursor: pointer;" src="ressources/images/fr/valider.gif" 	alt="" border="0" align="middle" /><br>
+<script>
+select_type_image_from_domaine();
+</script>
+					</div>
+
+
+
+
+
+
+
+											<span class="spanniveau1"><a href="javascript:goCartesAnim_front(600,539,'front/europeouest',-18);" target='_self' title="">Cartes des fronts</a></span><br>
+					
+					<span class="titreMessages">Aérologie</span><br>
+
+					<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/Glossaire_usagers_aero_fr.pdf');" target='_new' title="">Glossaire</a></span><br>
+											<!-- <span class="spanniveau1"><a href="javascript:gocartevav(1, true);" target='_self' title="">Productions aérologiques</a></span><br>
+ -->
+
+
+						<span class="spanniveau1"><a href="javascript:showEffect('idcartes_aerologiques',null);" target='_self' title="">Cartes aérologiques </a></span><br>
+
+
+
+
+						<div class="metmessages" id="idcartes_aerologiques" style="display:none;"><br>
+							
+<script type="text/javascript">
+function goCartes_aerologique() {
+
+
+toAjaxRequest("affichecartes.php?domaine="+jQuery('#mdomaine').val()+"&niveau="+jQuery('#mniveau').val(),"");
+}
+
+</script>
+
+<table width='100%' border='0'>
+
+
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Domaine :  </span></td>
+    <td  valign="middle" align='left' ><select style="width: 100px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:2px;" id="mdomaine_aerologique" onchange='get_type_carte_from_domaine_aerologique(this.value);'> <option value='1'  selected='true' >FRANCE</option><option value='2' >Quart SO</option><option value='3' >Quart SE</option><option value='4' >Quart NE</option><option value='5' >Quart NO</option></select></td>
+  </tr>
+  
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Type de cartes</span></td>
+    <td  valign="middle" align='left'> <select   id ="mtype_carte_aerologique"  style="width: 100px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:5px;"  onchange="get_level_from_domaine_and_chart_aerologique(jQuery('#mdomaine_aerologique').val(),this.value);"></select></td>
+  </tr>
+  <tr valign="middle"  >
+    <td  valign="middle"  align='right'  ><span class="spansouscarte">Niveau:</span></td>
+    <td  valign="middle" align='left'> <select   id ="mniveau_aerologique"  style="width: 100px;color:#000000 ;background-color:#E1F1FF;font-size:11px;font-family:arial;font-weight: bold;margin-right:5px;" ></select></td>
+  </tr>
+
+
+
+
+
+</table>
+
+
+<img onclick="javascript:goCartesAnim_aerologique(jQuery('#mtype_carte_aerologique').val(),'',jQuery('#mdomaine_aerologique').val(),jQuery('#mniveau_aerologique').val(),'0px','0px','0px','0px');"  style="cursor: pointer;" src="ressources/images/fr/valider.gif" 	alt="" border="0" align="middle" /><br>
+<a href='' target='new_window'></a>
+<a class="lien6"  target="_self" onclick="return newwindow('ressources/images/fr/carte_relief_modele_ARP.gif');" href="">Carte du relief</a>
+
+<script type="text/javascript">
+
+</script>						</div>
+
+						<!-- 
+<span class="spanniveau1"><a href="javascript:goCartesAnim_isp(1004,1015,'satellite/france/ir_prev',0);"
+target='_self' title="">Cartes satellite prévues</a></span><br>	
+-->
+					
+
+
+
+
+
+
+					<!--  radio sondage carte --> <span class="spanniveau1"><a href="javascript:showEffect('metcarte_radio_sondage','metcartesous_radio_sondage');" target='_self' title="">Radiosondages prévus/observés</a></span><br>
+
+					<div class="metcarte_radio_sondage" id="metcarte_radio_sondage" style="display: none;">
+						
+<img id='carte_radiosondage_id' src="ressources/images/background/carte_radio_sondage.gif" usemap="#map_radio_sondage" style="border-style:none" />
+
+<MAP NAME="map_radio_sondage">
+	<AREA SHAPE='circle' COORDS="50,12,5" onclick="toRadiosondage_prevu('Herstmonceux');" title="Herstmonceux" />
+	<AREA SHAPE='circle' COORDS="71,13,5" onclick="toRadiosondage_prevu('Lille');" title="Lille" />
+	<AREA SHAPE='circle' COORDS="66,25,5" onclick="toRadiosondage_prevu('Amiens');" title="Amiens" />
+	<AREA SHAPE='circle' COORDS="80,36,5" onclick="toRadiosondage_prevu('Epernay');" title="Epernay" />
+	<AREA SHAPE='circle' COORDS="99,41,5" onclick="toRadiosondage_prevu('Nancy');" title="Nancy" />
+	<AREA SHAPE='circle' COORDS="127,40,5" onclick="toRadiosondage_prevu('Stuttgart');" title="Stuttgart" />
+	<AREA SHAPE='circle' COORDS="102,51,5" onclick="toRadiosondage_prevu('Epinal');" title="Epinal" />
+	<AREA SHAPE='circle' COORDS="110,52,5" onclick="toRadiosondage_prevu('Colmar');" title="Colmar" />
+	<AREA SHAPE='circle' COORDS="59,38,5" onclick="toRadiosondage_prevu('Trappes');" title="Trappes" />
+	<AREA SHAPE='circle' COORDS="32,50,5" onclick="toRadiosondage_prevu('Rennes');" title="Rennes" />
+	<AREA SHAPE='circle' COORDS="9,44,5" onclick="toRadiosondage_prevu('Brest');" title="Brest" />
+	<AREA SHAPE='circle' COORDS="46,72,5" onclick="toRadiosondage_prevu('Poitiers');" title="Poitiers" />
+	<AREA SHAPE='circle' COORDS="62,66,5" onclick="toRadiosondage_prevu('Bourges');" title="Bourges" />
+	<AREA SHAPE='circle' COORDS="85,66,5" onclick="toRadiosondage_prevu('Beaune');" title="Beaune" />
+	<AREA SHAPE='circle' COORDS="132,85,5" onclick="toRadiosondage_prevu('Milan');" title="Milan" />
+	<AREA SHAPE='circle' COORDS="98,83,7" onclick="toRadiosondage_prevu('Chambery');" title="Chambery" />
+	<AREA SHAPE='circle' COORDS="87,81,7" onclick="toRadiosondage_prevu('Lyon');" title="Lyon" />
+	<AREA SHAPE='circle' COORDS="74,91,5" onclick="toRadiosondage_prevu('Saint-Flour');" title="Saint-Flour" />
+	<AREA SHAPE='circle' COORDS="56,102,5" onclick="toRadiosondage_prevu('Cahors');" title="Cahors" />
+	<AREA SHAPE='circle' COORDS="37,96,5" onclick="toRadiosondage_prevu('Bordeaux');" title="Bordeaux" />
+	<AREA SHAPE='circle' COORDS="7,117,5" onclick="toRadiosondage_prevu('Santander');" title="Santander" />
+	<AREA SHAPE='circle' COORDS="54,120,5" onclick="toRadiosondage_prevu('Saint-Girons');" title="Saint-Girons" />
+	<AREA SHAPE='circle' COORDS="85,107,5" onclick="toRadiosondage_prevu('Nimes');" title="Nimes" />
+	<AREA SHAPE='circle' COORDS="102,98,5" onclick="toRadiosondage_prevu('Gap');" title="Gap" />
+	<AREA SHAPE='circle' COORDS="114,128,5" onclick="toRadiosondage_prevu('Ajaccio');" title="Ajaccio" />
+	<AREA SHAPE='circle' COORDS="106,69,5" onclick="toRadiosondage_prevu('Payerne');" title="Payerne" />
+	<AREA SHAPE='circle' COORDS="28,113,5" onclick="toRadiosondage_prevu('Biarritz');" title="Biarritz" />
+	<AREA SHAPE='circle' COORDS="46,112,5" onclick="toRadiosondage_prevu('Auch');" title="Auch" />
+	<AREA SHAPE='circle' COORDS="69,120,5" onclick="toRadiosondage_prevu('Perpignan');" title="Perpignan" />
+	<AREA SHAPE='circle' COORDS="74,110,5" onclick="toRadiosondage_prevu('Florac');" title="Florac" />
+	<AREA SHAPE='circle' COORDS="74,80,5" onclick="toRadiosondage_prevu('Vichy');" title="Vichy" />
+	<AREA SHAPE='circle' COORDS="100,110,5" onclick="toRadiosondage_prevu('Manosque');" title="Manosque" />
+	<AREA SHAPE='circle' COORDS="60,53,5" onclick="toRadiosondage_prevu('Orleans');" title="Orléans" />
+	<AREA SHAPE='circle' COORDS="90,54,5" onclick="toRadiosondage_prevu('Chaumont');" title="Chaumont" />
+	<AREA SHAPE='circle' COORDS="46,42,5" onclick="toRadiosondage_prevu('Alencon');" title="Alencon" />
+	<AREA SHAPE='circle' COORDS="52,31,5" onclick="toRadiosondage_prevu('Rouen');" title="Rouen" />
+	
+</MAP>
+<MAP NAME="map_radio_sondage_reunion">
+	<AREA SHAPE='circle' COORDS="93,109,10" onclick="toRadiosondage_prevu('Gillot');" title="Gillot" />
+	<AREA SHAPE='circle' COORDS="106,103,10" onclick="toRadiosondage_prevu('Maurice');" title="Maurice" />
+	<AREA SHAPE='circle' COORDS="52,102,10" onclick="toRadiosondage_prevu('Ivato');" title="Ivato" />
+	<AREA SHAPE='circle' COORDS="92,13,10" onclick="toRadiosondage_prevu('Seychelles');" title="Seychelles" />
+	
+</MAP>
+<MAP NAME="map_radio_sondage_caledonie">
+	<AREA SHAPE='circle' COORDS="99,106,5" onclick="toRadiosondage_prevu('Noumea');" title="Noumea" />
+	<AREA SHAPE='circle' COORDS="98,94,5" onclick="toRadiosondage_prevu('Mont Dzumac');" title="Mont Dzumac" />
+	<AREA SHAPE='circle' COORDS="86,93,5" onclick="toRadiosondage_prevu('Mont Mou');" title="Mont Mou" />
+	<AREA SHAPE='circle' COORDS="73,88,5" onclick="toRadiosondage_prevu('La Ouenghi');" title="La Ouenghi" />
+	<AREA SHAPE='circle' COORDS="63,80,5" onclick="toRadiosondage_prevu('Ouatom');" title="Ouatom" />
+	<AREA SHAPE='circle' COORDS="55,75,5" onclick="toRadiosondage_prevu('Poe');" title="Poe" />
+	
+	
+</MAP>
+<MAP NAME="map_radio_sondage_tahiti">
+	<AREA SHAPE='circle' COORDS="47,69,5" onclick="toRadiosondage_prevu('Faaa');" title="Faaa" />
+	<AREA SHAPE='circle' COORDS="135,118,5" onclick="toRadiosondage_prevu('Rapa');" title="Rapa" />
+	<AREA SHAPE='circle' COORDS="126,19,5" onclick="toRadiosondage_prevu('Hiva Oa');" title="Hiva Oa" />
+	<AREA SHAPE='circle' COORDS="130,68,5" onclick="toRadiosondage_prevu('Mangareva');" title="Mangareva" />
+	
+</MAP>
+<MAP NAME="map_radio_sondage_guyane">
+	<AREA SHAPE='circle' COORDS="119,80,5" onclick="toRadiosondage_prevu('Cayenne-Matoury');" title="Cayenne-Matoury" />
+	
+	
+</MAP>
+<MAP NAME="map_radio_sondage_guadeloupe">
+	<AREA SHAPE='circle' COORDS="78,58,5" onclick="toRadiosondage_prevu('Le Raizet');" title="Le Raizet" />
+	
+	
+</MAP>					</div>
+					<div class="metcartesous" id="metcartesous_radio_sondage" style="display: none;"><span class="spantitresouscarte">Accès Direct</span><br>
+						<span class="spansouscarte">Nom de région :</span>
+						<select class="selreg" id="selreg_radio_sondage" onchange="javascript:toRadiosondage_prevu(null);">
+						<optgroup label="France">
+							<option  selected  value='france'>Carte</option> ->
+							<option value="Ajaccio" >Ajaccio</option>
+							<option value='Alencon'>Alençon</option>
+							<option value="Amiens">Amiens</option>
+							<option value='Auch'>Auch</option>
+							<option value="Beaune">Beaune</option>
+							<option value='Biarritz'>Biarritz</option>
+							<option value="Bordeaux">Bordeaux</option>
+							<option value="Bourges">Bourges</option>
+							<option value="Brest">Brest</option>
+							<option value="Cahors">Cahors</option>
+							<option value="Chambery">Chambery</option>
+							<option value='Chaumont'>Chaumont</option>
+							<option value="Colmar">Colmar</option>
+							<option value="Epernay">Epernay</option>
+							<option value="Epinal">Epinal</option>
+							<option value='Florac'>Florac</option>
+							<option value="Gap">Gap</option>
+							<option value="Lille">Lille</option>
+							<option value="Lyon">Lyon</option>
+							<option value='Manosque'>Manosque</option>
+							<option value="Nancy">Nancy</option>
+							<option value="Nimes">Nimes</option>
+							<option value='Orleans'>Orléans</option>
+							<option value='Perpignan'>Perpignan</option>
+							<option value="Poitiers">Poitiers</option>
+							<option value="Rennes">Rennes</option>
+							<option value='Rouen'>Rouen</option>
+							<option value="Saint-Flour">Saint-Flour</option>
+							<option value="Saint-Girons">Saint-Girons</option>
+							<option value="Trappes">Trappes</option>
+							<option value='Vichy'>Vichy</option>
+							</optgroup>
+						
+
+
+							<optgroup label="Proche-Europe">
+
+								<!--<option value='france'>Proche-Europe</option>-->
+								<option value="Herstmonceux">Herstmonceux</option>
+								<option value="Milan">Milan</option>
+								<option value="Payerne">Payerne</option>
+								<option value="Santander">Santander</option>
+								<option value="Stuttgart">Stuttgart</option>
+
+							</optgroup>
+
+
+							<optgroup label="Océan Indien">
+
+							<option  value='ocean_indien'>Carte</option>
+							<option value="Gillot">Gillot</option>
+							<option value="Ivato">Ivato</option>
+							<option value="Maurice">Maurice</option>
+							<option value="Seychelles">Seychelles</option>
+							</optgroup>
+
+							<optgroup label="Nouvelle Calédonie">
+							<option  value='caledonie'>Carte</option>
+							<option value='La Ouenghi'>La Ouenghi</option>
+							<option value='Mont Dzumac'>Mont Dzumac</option>
+							<option value='Mont Mou'>Mont Mou</option>
+							<option value="Noumea">Noumea</option>
+							<option value='Ouatom'>Ouatom</option>
+							<option value='Poe'>Poe</option>
+							</optgroup>
+
+							<optgroup label="Pacifique">
+							<option value='Tahiti'>Carte</option>
+							<option value='Faaa'>Faaa</option>
+							<option value='Rapa'>Rapa</option>
+							<option value='Hiva Oa'>Hiva Oa</option>
+							<option value='Mangareva'>Mangareva</option>
+							</optgroup>
+
+							<optgroup label="Guyane">
+							<option  value='Guyane'>Carte</option>
+							<option value='Cayenne-Matoury'>Cayenne-Matoury</option>
+							</optgroup>
+
+							<optgroup label="Guadeloupe"> 
+							<option  value='Guadeloupe'>Carte</option>
+							<option style ="text-indent: 30px;" value='Le Raizet'>Le Raizet</option>
+							</optgroup>
+						</select>
+					</div>
+
+					<span class="spanniveau1"><a href="http://aviation-mobile.meteo.fr/index.php?link=briefing" target='_self' title="">Briefing</a></span><br>
+
+					<span class="titreMessages">Produits complémentaires</span><br>
+
+
+
+					<span class="spanniveau1"><a href='javascript:void(0);' onclick="newfullwindow('/complementary/sigmets_graph.php', 'sigmets_graph');" target='_self' title=''>Sigmet graphique (France)</a></span><br><span class="spanniveau1"><a href='javascript:void(0);' onclick="connect_maille_fine('fr')" target='_self' title=''>Prévision/Observation</a></span><br><br>
+				</div>
+				<div class="plusloin">
+					<div class="head">
+						<table width="100%" height='100%' cellpadding="0">
+							<tr align="center">
+								<td valign='middle'>Aller plus loin								</td>
+							</tr>
+						</table>
+					</div>
+					<div class="ombre"></div>
+
+					<div class="plusloinbody">
+						<span class="titreMessages">Rapport de vol</span>
+						<br><span class="spanniveau1"><a href='javascript:toAjaxRequest(\"./rapport_vol.php\",\"\");' onclick="to_rapp_vol();return false;" target='_self' title="">Saisir un rapport de vol							</a></span>
+
+						<!--<br> <span class="spanniveau1"> <a href='' onclick="return newwindow('./Rapport_vol/rapport_aero_v12.php',800);" target='_new' title="">Sur les conditions aérologiques							</a>
+						-->
+
+						<!--</span><br> <span class="spanniveau1"><a href="accueil.php?link_to=rapmeteo" onclick="to_rapp_meteo();return false;" target='_self' title="">Sur le givrage ou la turbulence							</a>-->
+						<!--</span><br> <span class="spanniveau1"><a href='' onclick="return newwindow('./Rapport_vol/rapport_meteo_v12.php',800);" target='_new' title="">Sur le givrage ou la turbulence							</a>-->
+
+						</span><br> <span class="titreMessages">Outils						</span><br> <span class="spanniveau1"><a href="javascript:recherche_station('',false);" title="">Recherche station							</a>
+
+						</span><br> <span class="spanniveau1"><a href="javascript:recherche_fir('',false);" title="">Recherche FIR							</a> </span><br> <span class="titreMessages">Documentation						</span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/guide_aviation.pdf');" target='_new' title="">Guide Aviation							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/tendance_automatique.pdf');" target='_new' title="">Tendance automatique							</a> </span><br>
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/amdt78.pdf');" target='_new' title="">Résumé amendement 78							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/fiche_givrage.pdf');" target='_new' title="">Fiche Givrage							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/fiche_turbulence.pdf');" target='_new' title="">Fiche Turbulence							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/fiche_grele.pdf');" target='_new' title="">Fiche grêle							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/fiche_images_radar_satellite.pdf');" target='_self' title="">Images radar et satellites							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/PassageVAAeroweb2.pdf');" target='_self' title="">Visibilité aéronautique							</a> </span><br>
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/comprendre_letaf.pdf');" target='_self' title="">Interprétation du TAF							</a> </span><br>
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/rapport_aero_annuel.pdf');" target='_new' title="">Rapport Aéro annuel							</a> </span><br>
+
+						<span class="titreMessages">Liens utiles						</span><br> <span class="spanniveau1"><a href='https://aviation-mobile.meteo.fr' target="_self" title="">AEROWEB Version mobile							</a> </span><br>
+						<!-- 
+						<span class="spanniveau1"><a href='javascript:void(0);'
+							onclick="show_carte_obs_meteo();"
+							title="">Observations						</a> </span><br> 
+						 -->
+						<span class="spanniveau1"><a href='' onclick="return newwindow_menubar('https://aerodidact.enm-toulouse.fr/');" target='_new' title="">Didacticiel ENM							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('http://www.sia.aviation-civile.gouv.fr/');" target="_new" title="">SIA							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('https://sofia-briefing.aviation-civile.gouv.fr/');" target="_new" title="">SOFIA Briefing							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('https://www.ecologique-solidaire.gouv.fr/direction-generale-laviation-civile-dgac');" target="_new" title="">DGAC							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('http://vaac.meteo.fr');" target="_new" target='_self' title="">Activité volcanique							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('http://www.bea.aero/');" target="_new" title="">BEA							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('https://library.wmo.int/index.php?lvl=notice_display&id=13618');" target="_new" title="">Manuel des codes OMM							</a> </span><br>
+
+
+
+						<span class="titreMessages">Droits						</span><br> <span class="spanniveau1"><a href='' onclick=" jQuery('#ml').dialog('open'); return false;" target="_new" target='_self' title="">Mentions légales							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('http://www.meteofrance.com/droits-de-reproduction');" target='_new' title="">Droits de reproduction							</a> </span><br>
+
+						<span class="spanniveau1"><a href='' onclick="return newwindow('/documentation/conditions_generales_service_aeroweb.pdf');" target='_new' title="">Conditions générales							</a> </span><br> <br>
+					</div>
+				</div>
+			</div>
+
+			
+				<div class='droite' id='menu_droit' style='display: block;'>
+
+					<div class='bdroite'>
+
+						<div class='bdroitehaut'>
+							<table width="100%" height="100%" cellpadding="0">
+								<tr align='center'>
+									<td valign='middle'>Mes dossiers de vol favoris									</td>
+								</tr>
+							</table>
+						</div>
+						<div class='bdroitebody' id='dossiers_favoris'></div>
+						<div class='bdroitebas'></div>
+					</div>
+
+					<div class='bdroite'>
+						<div class='bdroitehaut'>
+							<table width='100%' height='100%' cellpadding='0'>
+								<tr align='center'>
+									<td valign='middle'>Mes dossiers de vol récents									</td>
+								</tr>
+							</table>
+						</div>
+						<div class='bdroitebody' align='center' id='dossiers_recents'></div>
+						<div class='bdroitebas'></div>
+					</div>
+
+					<div class='bdroitevert'>
+						<div class='bdroitehautvert'>
+							<table width='100%' height='100%' cellpadding='0'>
+								<tr align='center'>
+									<td align='right' valign='middle'><a class='lien6' href="javascript:ajax_validMessage();">Message : 											<span id='showspan'>LFED </span> </a></td>
+									<td valign='middle'><a href='javascript:changeoaci();' class='lien6'>Modifier l'aérodrome										</a></td>
+								</tr>
+
+							</table>
+						</div>
+						<div class='bdroitebodyvert'>
+							<div id='tabshow' class="mycellContenuTabClassiquePetit2"  style='border:0px solid red;margin-left:5px;'><br><span class="texte3">Pas de METAR, TAF, SPECI pour : LFED <br>
+<br>
+</span><span class="texte3">Pas de SIGMET, GAMET, AIRMET pour : LFRR <br>
+<br>
+</span>Les messages SIGMET présentés ici sont uniquement ceux conformes à l'Annexe 3 de l'OACI.<br><br>
+<input type='hidden' id='lat_message' value='48.056944444444'><input type='hidden' id='lon_message' value='-2.9233333333333'></div><input type='hidden' value='LFED' id='hidden'> 
+
+</div>
+						<div class='bdroitefootvert'></div>
+					</div>
+				</div>
+
+			
+						<div id="centre" class="centre" >
+				<!--   tous les traitements -->
+
+				<map name="">
+					<area onclick="javascript:toTactique();">
+				</map>
+
+
+
+				<div id="waiting" class="waitingBackground" style="display:none;background: url('ressources/images/fr/ajax-loader.gif');background-repeat: no-repeat; background-position: center;">
+
+				</div>
+
+
+
+				<div id="centrebody"></div>
+			</div>
+
+
+		</div>
+
+
+
+		<script>
+			function show_carte_obs_meteo() {
+				showPopWin("show_carte_obs_meteo.php", 450, 110, null, true, "Avertissement");
+
+			}
+
+			function init_aero3() {
+
+			};
+
+			function newwindow(url, width, height) {
+				if (width == null) width = 1024;
+				if (height == null) height = 768;
+
+
+				window.open(url, "_blank", 'top=0,left=0,width=' + width + ',height=' + height + ',menubar=no,status=no,scrollbars=yes,resizable=yes');
+				return false;
+			}
+
+			function newwindow_gafor(url, width, height) {
+				if (width == null) width = 1024;
+				if (height == null) height = 768;
+
+
+				window.open(url, "gafor_view", 'top=0,left=0,width=' + width + ',height=' + height + ',menubar=no,status=no,scrollbars=yes,resizable=yes');
+				return false;
+			}
+
+			function newwindow_menubar(url, width, height) {
+				if (width == null) width = 1024;
+				if (height == null) height = 768;
+
+				window.open(url, '_blank');
+				return false;
+			}
+
+			function newfullwindow(url, name) {
+				var myPopup = window.open(url, name, 'top=0,left=0,fullscreen=yes,menubar=no,status=no,scrollbars=yes,resizable=yes');
+				$(myPopup).focus();
+			}
+
+			function connect_maille_fine(origin) {
+
+				var encode = "4e5a771e8a5aa8bb9ef22c052b2f8e2e";
+
+				jQuery.ajax({
+					type: 'GET',
+					url: service_wms + 'wms/v2/auth/login/' + service_uid + '/' + escape("rmqr") + '/' + encode,
+					crossDomain: true,
+					complete: function(obj) {
+						newfullwindow("/Aeroweb_maille_fine/index.html?origin=" + origin, "Aeroweb_maille_fine");
+					}
+				});
+
+			}
+			setInterval(test_connection, (60 * 8000));
+
+			function toggleDisabled(el) {
+				try {
+					el.disabled = el.disabled ? false : true;
+				} catch (E) {}
+				if (el.childNodes && el.childNodes.length > 0) {
+					for (var x = 0; x < el.childNodes.length; x++) {
+						toggleDisabled(el.childNodes[x]);
+					}
+				}
+			}
+		</script>
+
+		<script>
+			function toggleDisabled(el) {
+				try {
+					el.disabled = el.disabled ? false : true;
+				} catch (E) {}
+				var collec = el.childElements();
+				if (collec && collec.length > 0) {
+					for (var x = 0; x < collec.length; x++) {
+						toggleDisabled(collec[x]);
+					}
+				}
+			}
+
+			function initmap(center, zoom) {
+				map = new OpenLayers.MapSphericalMercator(
+					"map", {
+						numZoomLevels: 10
+					}
+				);
+
+				var tile = new OpenLayers.Layer.LayerSphericalMercatorTile(
+					"Carte monde",
+					"/dmap-carto/aeroweb-vfr/", {}
+				);
+
+				var reseau = document.getElementsByName('reseau');
+				for (var i = 0; i < reseau.length; i++) {
+					if (reseau[i].checked == true) {
+						reseau = reseau[i].value;
+						break;
+					}
+				}
+
+				metars = new OpenLayers.Layer.LayerDynMarkers(
+					"Métars",
+					"./ajax/ajax_trajet_get_stations.php?", {
+						reseau: reseau,
+						type: "oaci"
+					}, {
+						featureClass: OpenLayers.Feature.MarkerOpmetTrajet
+					}
+				);
+
+				map.events.register('moveend', map, function() {
+					center_map = map.getCenter();
+				});
+
+				map.events.register('zoomend', map, function() {
+					zoom_map = map.getZoom();
+				});
+
+
+				map.addLayer(tile);
+
+
+				map.addLayer(tile);
+
+				map.addLayer(metars);
+				map.addControl(new OpenLayers.Control.OverviewSphericalMercatorMap());
+				map.setCenter(center, zoom);
+			}
+
+
+			OpenLayers.Util.onTileLoadStart = function() {
+				UnTip();
+
+				date_reseau_recu = "Pas de données trouvées pour ce domaine et ce réseau!"
+				document.getElementById('waitbox_globaldiv').style.display = 'block';
+				document.getElementById('waitbox_map').style.display = 'block';
+
+			}
+
+			OpenLayers.Util.onTileLoadEnd = function() {
+				document.getElementById('waitbox_map').style.display = 'none';
+				document.getElementById('waitbox_globaldiv').style.display = 'none';
+				var id_map_info = document.getElementById('map_info');
+				id_map_info.innerHTML = "<table align='center' height='100%'><tr><td valign='middle'>" + date_reseau_recu + "</td></tr></table>";
+			}
+
+
+			
+			function my_init(center, zoom) {
+
+
+
+				initmap(center, zoom);
+
+
+			}
+
+			function outer_station(evt) {
+
+
+				UnTip();
+			}
+
+			function outer_station2(evt) {
+
+
+				UnTip();
+			}
+
+			function over_station(ev, index) {
+
+
+				var x = ev.pageX;
+				var y = ev.pageY - 10;
+
+
+
+				if (!metars.markers) return;
+
+
+
+				for (var i = 0; i < metars.markers.length; i++) {
+
+
+					//continue;
+
+					//var reponse=Position.within($(metars.markers[i].station.oaci+"_center2"),x, y);
+					var reponse = (metars.markers[i].station.oaci == index);
+					if (reponse == true) {
+
+						var o = metars.markers[i].station.opemet;
+						var oaci = metars.markers[i].station.oaci;
+						var lonlat = metars.markers[i].station.lonlat;
+						var oaci_name = metars.markers[i].station.name;
+						var img_src = jQuery('#' + metars.markers[i].station.oaci + "_center2").attr('src');
+						//gris bleu orange rouge
+						var blue = "blue"; //"#009bdb";
+						var grey = "grey"; //"#919191";
+						var orange = "orange"; //"#00c800";//"#b2e80c";
+						var red = "red"; //#db5900"
+						var yellow = "yellow";
+						var green = "green"
+						var m_color = 'black';
+						if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='grey.gif']").get(0)) m_color = grey;
+						else if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='00b0f0.gif']").get(0)) m_color = '#00b0f0';
+						else if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='92d050.gif']").get(0)) m_color = '#92d050';
+						else if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='ffff00.gif']").get(0)) m_color = '#ffff00';
+						else if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='ffc000.gif']").get(0)) m_color = '#ffc000';
+						else if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='ff0000.gif']").get(0)) m_color = '#ff0000';
+						else if (jQuery('#' + metars.markers[i].station.oaci + "_center2[src$='9941d3.gif']").get(0)) m_color = '#9941d3';
+						else m_color = 'black';
+
+						var t = "<div   onmouseout='outer_station(null);' class= 'opemet' >";
+						var tt = "";
+
+
+						if (o) {
+							o = o.childNodes;
+							if (o) {
+								for (var i = 0; i < o.length; i++) {
+									var e = o[i];
+
+									if (e.tagName == "speci") {
+										var speci = e.firstChild.data;
+
+										if (speci != "") tt += "<span class='opemet' style='color:#db5900;'><b>SPECI:</b> " + speci + "</span><BR>";
+
+
+
+									}
+									if (e.tagName == "metar") {
+										//var metar=e.getAttribute('natif');
+										var metar = e.firstChild.data;
+										if (metar != "") tt += "<b>METAR:</b> " + metar + "<BR>";
+
+									}
+									if (e.tagName == "tafc") {
+										var taf_court = e.firstChild.data;
+										if (taf_court != "") tt += "<b>TAF COURT:</b> " + taf_court + "<BR>";
+									}
+									if (e.tagName == "tafl") {
+										var taf_long = e.firstChild.data;
+										if (taf_long != "") tt += "<b>TAF LONG:</b> " + taf_long + "<BR>";
+									}
+
+								}
+
+							}
+						}
+
+
+
+
+
+
+
+
+
+
+
+						if (tt == "") tt = "<b>" + oaci + ":Pas de données disponibles</b>";
+
+						t += tt + "</div>";
+
+
+						Tip(t, FIX, [x - 100, y - 5], BORDERWIDTH, 2, BGCOLOR, 'ivory', BORDERCOLOR, m_color, SHADOW, true, WIDTH, 200, TITLE, "<b>" + oaci_name.firstChild.data + "</b>", TITLEFONTCOLOR, 'black', TITLEBGCOLOR, m_color, DURATION, 30000);
+
+						return true;
+					}
+				}
+
+
+				UnTip();
+				return true;
+
+			}
+
+
+
+
+			function open_close_domaine(me, famille, parameters) {
+
+				var id_div = document.getElementById(famille);
+
+				if (id_div.style.display == 'none') {
+					id_div.style.display = 'block';
+					me.style.backgroundImage = 'url(ressources/images/moins.gif)';
+
+					var url = 'get_domaine_layers_echeances.php';
+
+					jQuery.ajax({
+						url: url,
+						type: 'GET',
+						data: parameters,
+
+						success: function(transport) {
+
+							id_div.innerHTML = transport;
+						},
+						error: function() {
+							td_id.innerHTML = "Erreur";
+						},
+						complete: function() {
+							setTimeout("cacheWaiting()", 100);
+						},
+						beforeSend: function() {
+							busyProcess();
+						}
+					});
+
+
+				} else {
+					id_div.style.display = 'none';
+					me.style.backgroundImage = 'url(ressources/images/plus.gif)';
+				}
+			}
+		</script>
+		<script type="text/javascript">
+			function valid_contact() {
+				//effaceSpan();
+
+				var url = "./ajax/contact_valid.php";
+
+
+
+				//var parametres = Form.serialize( 'form') ;
+				var parametres = jQuery('#form').serialize();
+
+
+
+
+				jQuery.ajax({
+					url: url,
+					type: 'POST',
+					data: parametres,
+					complete: function(transport) {
+						// affichereponse_aero(transport);
+
+						eval(transport.responseText);
+					}
+
+				});
+
+			}
+		</script>
+		<script type="text/javascript">
+			function mouse_in_tr(me) {
+
+				me.style.backgroundColor = '#DFF2FF';
+
+			}
+
+			function mouse_out_tr(me) {
+
+				me.style.backgroundColor = '';
+			}
+		</script>
+
+		<div id="wait"></div>
+
+		<div id="waitbox_globaldiv"></div>
+
+		<div id="ml" title="Mentions légales">
+			<img src="ressources/images/fr/mentions_legales.png">
+		</div>
+		<!--
+		<script type="text/javascript">
+			Xt_param = 's=39185&s2=58&di=&p=Accueil_Aeroweb';
+			if (window.xtparam != null) {
+				Xt_param += xtparam;
+			}
+			try {
+				Xt_r = top.document.referrer;
+			} catch (e) {
+				Xt_r = document.referrer;
+			}
+			Xt_h = new Date();
+			Xt_i = '<img width="1" height="1" alt="" src="https://logs.xiti.com/hit.xiti?' + Xt_param;
+			Xt_i += '&hl=' + Xt_h.getHours() + 'x' + Xt_h.getMinutes() + 'x' + Xt_h.getSeconds();
+			if (parseFloat(navigator.appVersion) >= 4) {
+				Xt_s = screen;
+				Xt_i += '&r=' + Xt_s.width + 'x' + Xt_s.height + 'x' + Xt_s.pixelDepth + 'x' + Xt_s.colorDepth;
+			}
+			document.write(Xt_i + '&ref=' + Xt_r.replace(/[<>"]/g, '').replace(/&/g, '$') + '" >');
+		</script>
+		<noscript>
+			<img width="1" height="1" alt="" src="https://logs.xiti.com/hit.xiti?s=39185&amp;s2=58&amp;p=&amp;di=">
+		</noscript>
+		-->
+	</div>
+
+
+</body>
+
+</html>

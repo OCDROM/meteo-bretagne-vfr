@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Météo VFR Bretagne</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .category-badge {
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .airport-row:hover {
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .last-update {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        .header-section {
+            margin-bottom: 30px;
+        }
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.85em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-section">
+            <h1 class="text-center mb-3">
+                ✈️ Météo VFR Bretagne
+            </h1>
+            <p class="text-center text-muted">
+                Conditions météo en temps réel pour les aéroports bretons
+            </p>
+            <div class="text-center last-update">
+                {% if last_update %}
+                    Dernière mise à jour : {{ last_update|format_datetime }}
+                {% endif %}
+                <a href="/api/refresh" class="btn btn-sm btn-outline-primary ms-2">🔄 Actualiser</a>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Légende</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <span class="badge bg-success">CAVOK</span> Excellentes conditions VFR<br>
+                        <span class="badge bg-primary">VFR</span> Bonnes conditions VFR<br>
+                        <span class="badge bg-warning text-dark">MVFR</span> Conditions VFR marginales
+                    </div>
+                    <div class="col-md-6">
+                        <span class="badge bg-danger">IFR</span> Vol aux instruments requis<br>
+                        <span class="badge bg-dark">LIFR</span> Conditions IFR basses<br>
+                        <span class="badge bg-secondary">N/A</span> Pas de données disponibles
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Rang</th>
+                        <th>Code OACI</th>
+                        <th>Nom de l'aéroport</th>
+                        <th>Catégorie</th>
+                        <th>Visibilité</th>
+                        <th>Plafond</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in airports %}
+                    <tr class="airport-row" onclick="window.location='/detail/{{ item.weather.icao }}'">
+                        <td>{{ loop.index }}</td>
+                        <td><strong>{{ item.weather.icao }}</strong></td>
+                        <td>{{ item.airport.name if item.airport else item.weather.icao }}</td>
+                        <td>
+                            {% if item.weather.flight_category %}
+                                <span class="badge bg-{{ item.weather.flight_category|category_color }} category-badge">
+                                    {{ item.weather.flight_category }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.weather.visibility_sm %}
+                                {{ item.weather.visibility_sm|visibility_km }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.weather.ceiling_ft %}
+                                {{ "{:,}".format(item.weather.ceiling_ft) }} ft
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/detail/{{ item.weather.icao }}" class="btn btn-sm btn-outline-primary">
+                                Détails →
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-center mt-4">
+            <small class="text-muted">
+                Données fournies par aviation.meteo.fr | 
+                Mise à jour automatique toutes les 30 minutes
+            </small>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

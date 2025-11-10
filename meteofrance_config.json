@@ -1,0 +1,5 @@
+{
+  "radar_wms": "https://donneespubliques.meteofrance.fr/\u0026...replace_with_valid_wms...",
+  "radar_gif": "https://donneespubliques.meteofrance.fr/\u0026...replace_with_valid_gif...",
+  "arome_api": "https://donneespubliques.meteofrance.fr/\u0026...replace_with_arome_api..."
+}
