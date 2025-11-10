@@ -217,39 +217,28 @@ def decode_metar_detailed(metar: str) -> dict:
     # AUTO
     decoded['auto'] = 'AUTO' in metar_upper
     
-    # Vent
+    # Vent - aplatir la structure
     wind_match = re.search(r'\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b', metar_upper)
     if wind_match:
-        decoded['wind'] = {
-            'direction': wind_match.group(1),
-            'speed': int(wind_match.group(2)),
-            'gust': int(wind_match.group(3)) if wind_match.group(3) else None
-        }
+        decoded['wind_dir'] = wind_match.group(1)
+        decoded['wind_speed'] = int(wind_match.group(2))
+        decoded['wind_gust'] = int(wind_match.group(3)) if wind_match.group(3) else None
     
     # Variation vent
     wind_var = re.search(r'\b(\d{3})V(\d{3})\b', metar_upper)
     if wind_var:
-        decoded['wind_var'] = {
-            'from': wind_var.group(1),
-            'to': wind_var.group(2)
-        }
+        decoded['wind_var'] = f"{wind_var.group(1)}V{wind_var.group(2)}"
     
     # Visibilité
-    if 'CAVOK' in metar_upper:
-        decoded['visibility'] = {'type': 'CAVOK'}
-    else:
+    decoded['cavok'] = 'CAVOK' in metar_upper
+    if not decoded['cavok']:
         vis_match = re.search(r'\b(\d{4})\b', metar_upper)
         if vis_match:
-            vis_m = int(vis_match.group(1))
-            decoded['visibility'] = {
-                'type': 'meters',
-                'value': vis_m,
-                'km': vis_m / 1000
-            }
+            decoded['visibility'] = int(vis_match.group(1))
     
     # Phénomènes météo
     phenomena = []
-    for code in ['TSRA', 'TS', '+RA', '-RA', 'RA', 'SHRA', 'SN', 'FG', 'BR', 'DZ']:
+    for code in ['TSRA', 'TS', '+RA', '-RA', 'RA', 'SHRA', 'SN', 'FG', 'BR', 'DZ', 'GR', 'FZRA']:
         if code in metar_upper:
             phenomena.append(code)
     decoded['phenomena'] = phenomena
@@ -265,21 +254,21 @@ def decode_metar_detailed(metar: str) -> dict:
         })
     decoded['clouds'] = clouds
     
-    # Température
+    # Température - aplatir la structure
     temp_match = re.search(r'\b(M?\d{2})/(M?\d{2})\b', metar_upper)
     if temp_match:
         temp_str = temp_match.group(1).replace('M', '-')
         dew_str = temp_match.group(2).replace('M', '-')
-        decoded['temperature'] = {
-            'temp': int(temp_str),
-            'dewpoint': int(dew_str),
-            'spread': int(temp_str) - int(dew_str)
-        }
+        temp_val = int(temp_str)
+        dew_val = int(dew_str)
+        decoded['temperature'] = temp_val
+        decoded['dewpoint'] = dew_val
+        decoded['spread'] = temp_val - dew_val
     
     # Pression
     pressure_match = re.search(r'\bQ(\d{4})\b', metar_upper)
     if pressure_match:
-        decoded['pressure'] = int(pressure_match.group(1))
+        decoded['qnh'] = int(pressure_match.group(1))
     
     return decoded
 
