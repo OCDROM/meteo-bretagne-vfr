@@ -185,7 +185,6 @@ def map_view():
                 
                 airports_json.append({
                     'icao': weather.icao,
-                    'iata': airport.iata,
                     'name': airport.name,
                     'lat': airport.lat,
                     'lon': airport.lon,
