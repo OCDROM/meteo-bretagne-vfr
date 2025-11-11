@@ -54,15 +54,20 @@ def get_weather_data(force_refresh=False):
         if weather_cache['last_update']:
             elapsed = (datetime.now() - weather_cache['last_update']).total_seconds()
             if elapsed < 1800:  # 30 minutes
+                print(f"✓ Using cached data (age: {elapsed:.0f}s)")
                 return weather_cache['data'], weather_cache['airports']
     
     # Sinon, récupérer les nouvelles données
     try:
+        print("Fetching fresh weather data...")
+        
         # Charger les aéroports
         airports = load_brittany_airports()
+        print(f"✓ Loaded {len(airports)} airports")
         
         # Créer une session et se connecter
         if weather_cache['session'] is None:
+            print("Creating new session...")
             session = requests.Session()
             session.headers.update({
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Brittany-VFR-Web/1.0'
@@ -70,17 +75,25 @@ def get_weather_data(force_refresh=False):
             
             # Récupérer les credentials
             username, password = get_credentials()
+            print(f"✓ Got credentials: username={username}, password={'*' * len(password)}")
             
             # Login
             if not login_meteo_fr(session, username, password):
                 raise Exception("Échec de l'authentification")
             
+            print("✓ Login successful")
             weather_cache['session'] = session
         else:
+            print("✓ Reusing existing session")
             session = weather_cache['session']
         
         # Récupérer les données météo
         weather_data = fetch_all_weather(session, airports)
+        
+        # Compter les données valides
+        with_metar = sum(1 for w in weather_data if w.metar_raw)
+        with_taf = sum(1 for w in weather_data if w.taf_raw)
+        print(f"✓ Fetched weather: {with_metar} METAR, {with_taf} TAF")
         
         # Mettre à jour le cache
         weather_cache['data'] = weather_data
@@ -90,9 +103,12 @@ def get_weather_data(force_refresh=False):
         return weather_data, airports
     
     except Exception as e:
-        print(f"Erreur lors de la récupération des données: {e}")
+        print(f"✗ Error fetching weather data: {e}")
+        import traceback
+        traceback.print_exc()
         # Si erreur, retourner le cache même s'il est ancien
         if weather_cache['data']:
+            print("⚠️  Returning old cached data due to error")
             return weather_cache['data'], weather_cache['airports']
         raise
 
