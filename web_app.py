@@ -144,6 +144,67 @@ def index():
         return render_template('error.html', error=str(e)), 500
 
 
+@app.route('/map')
+def map_view():
+    """Page carte interactive avec tous les aéroports."""
+    try:
+        import json
+        weather_data, airports = get_weather_data()
+        
+        # Construire les données pour la carte
+        airport_map = {a.icao: a for a in airports}
+        airports_json = []
+        
+        stats = {
+            'cavok': 0,
+            'vfr': 0,
+            'mvfr': 0,
+            'ifr': 0,
+            'lifr': 0,
+            'nodata': 0
+        }
+        
+        for weather in weather_data:
+            airport = airport_map.get(weather.icao)
+            if airport:
+                category = weather.flight_category or 'N/A'
+                
+                # Compter les stats
+                if category == 'CAVOK':
+                    stats['cavok'] += 1
+                elif category == 'VFR':
+                    stats['vfr'] += 1
+                elif category == 'MVFR':
+                    stats['mvfr'] += 1
+                elif category == 'IFR':
+                    stats['ifr'] += 1
+                elif category == 'LIFR':
+                    stats['lifr'] += 1
+                else:
+                    stats['nodata'] += 1
+                
+                airports_json.append({
+                    'icao': weather.icao,
+                    'iata': airport.iata,
+                    'name': airport.name,
+                    'lat': airport.lat,
+                    'lon': airport.lon,
+                    'category': category,
+                    'metar': weather.metar_raw if weather.metar_raw else None
+                })
+        
+        last_update = weather_cache['last_update'].strftime('%d/%m/%Y %H:%M:%S') if weather_cache['last_update'] else 'N/A'
+        
+        return render_template('map.html',
+                             airports_json=json.dumps(airports_json),
+                             weather_data=weather_data,
+                             stats=stats,
+                             last_update=last_update)
+    
+    except Exception as e:
+        return render_template('error.html', error=str(e)), 500
+
+
 @app.route('/detail/<icao>')
 def detail(icao):
     """Page de détails pour un aéroport spécifique."""

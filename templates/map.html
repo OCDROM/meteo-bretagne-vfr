@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carte VFR Bretagne</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .airport-marker {
+            background: white;
+            border: 3px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8em;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        
+        .airport-marker:hover {
+            transform: scale(1.2);
+            z-index: 1000;
+        }
+        
+        .marker-cavok {
+            background: #28a745;
+            color: white;
+            border-color: #1e7e34;
+        }
+        
+        .marker-vfr {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+        
+        .marker-mvfr {
+            background: #ffc107;
+            color: #000;
+            border-color: #e0a800;
+        }
+        
+        .marker-ifr {
+            background: #dc3545;
+            color: white;
+            border-color: #bd2130;
+        }
+        
+        .marker-lifr {
+            background: #6c1a28;
+            color: white;
+            border-color: #4a0d1c;
+        }
+        
+        .marker-nodata {
+            background: #6c757d;
+            color: white;
+            border-color: #545b62;
+        }
+        
+        .leaflet-popup-content {
+            min-width: 250px;
+        }
+        
+        .popup-header {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .popup-icao {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        
+        .popup-category {
+            padding: 4px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            line-height: 2.2;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #333;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🗺️ Carte Météo VFR - Bretagne</span>
+            <div>
+                <a href="/" class="btn btn-outline-light btn-sm me-2">📊 Tableau</a>
+                <button onclick="refreshData()" class="btn btn-light btn-sm">🔄 Actualiser</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <!-- Carte -->
+            <div class="col-lg-9">
+                <div class="stats-card">
+                    <h5>Conditions météo en temps réel</h5>
+                    <p class="mb-0">
+                        <strong>{{ weather_data|length }}</strong> aéroports surveillés | 
+                        Dernière mise à jour : <span id="last-update">{{ last_update }}</span>
+                    </p>
+                </div>
+                <div id="map"></div>
+            </div>
+            
+            <!-- Légende et statistiques -->
+            <div class="col-lg-3">
+                <div class="legend mt-4 mt-lg-0">
+                    <h5 class="mb-3">📊 Légende VFR</h5>
+                    
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #28a745; border-color: #1e7e34;"></div>
+                        <div>
+                            <strong>CAVOK</strong><br>
+                            <small>Conditions idéales</small>
+                        </div>
+                    </div>
+                    
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #007bff; border-color: #0056b3;"></div>
+                        <div>
+                            <strong>VFR</strong><br>
+                            <small>Vol à vue OK</small>
+                        </div>
+                    </div>
+                    
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffc107; border-color: #e0a800;"></div>
+                        <div>
+                            <strong>MVFR</strong><br>
+                            <small>Conditions marginales</small>
+                        </div>
+                    </div>
+                    
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc3545; border-color: #bd2130;"></div>
+                        <div>
+                            <strong>IFR</strong><br>
+                            <small>Vol IFR requis</small>
+                        </div>
+                    </div>
+                    
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6c1a28; border-color: #4a0d1c;"></div>
+                        <div>
+                            <strong>LIFR</strong><br>
+                            <small>Conditions très mauvaises</small>
+                        </div>
+                    </div>
+                    
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #6c757d; border-color: #545b62;"></div>
+                        <div>
+                            <strong>N/A</strong><br>
+                            <small>Pas de données</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h6 class="card-title">📈 Statistiques</h6>
+                        <p class="mb-1"><strong>CAVOK:</strong> {{ stats.cavok }}</p>
+                        <p class="mb-1"><strong>VFR:</strong> {{ stats.vfr }}</p>
+                        <p class="mb-1"><strong>MVFR:</strong> {{ stats.mvfr }}</p>
+                        <p class="mb-1"><strong>IFR:</strong> {{ stats.ifr }}</p>
+                        <p class="mb-1"><strong>LIFR:</strong> {{ stats.lifr }}</p>
+                        <p class="mb-0"><strong>Sans données:</strong> {{ stats.nodata }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Données des aéroports
+        const airports = {{ airports_json|safe }};
+        
+        // Initialiser la carte centrée sur la Bretagne
+        const map = L.map('map').setView([48.2, -3.0], 8);
+        
+        // Ajouter la couche de tuiles OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Fonction pour obtenir la classe CSS selon la catégorie
+        function getCategoryClass(category) {
+            if (!category) return 'marker-nodata';
+            const cat = category.toUpperCase();
+            if (cat === 'CAVOK') return 'marker-cavok';
+            if (cat === 'VFR') return 'marker-vfr';
+            if (cat === 'MVFR') return 'marker-mvfr';
+            if (cat === 'IFR') return 'marker-ifr';
+            if (cat === 'LIFR') return 'marker-lifr';
+            return 'marker-nodata';
+        }
+        
+        // Fonction pour obtenir la couleur de badge
+        function getCategoryBadgeClass(category) {
+            if (!category) return 'bg-secondary';
+            const cat = category.toUpperCase();
+            if (cat === 'CAVOK') return 'bg-success';
+            if (cat === 'VFR') return 'bg-primary';
+            if (cat === 'MVFR') return 'bg-warning text-dark';
+            if (cat === 'IFR') return 'bg-danger';
+            if (cat === 'LIFR') return 'bg-dark';
+            return 'bg-secondary';
+        }
+        
+        // Ajouter les marqueurs pour chaque aéroport
+        airports.forEach(airport => {
+            const category = airport.category || 'N/A';
+            const categoryClass = getCategoryClass(category);
+            const badgeClass = getCategoryBadgeClass(category);
+            
+            // Créer une icône personnalisée
+            const icon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div class="airport-marker ${categoryClass}">${airport.iata || airport.icao.substr(2)}</div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, -20]
+            });
+            
+            // Créer le contenu du popup
+            const popupContent = `
+                <div>
+                    <div class="popup-icao">${airport.icao}</div>
+                    <div class="popup-header">${airport.name}</div>
+                    <div class="popup-category ${badgeClass}">${category}</div>
+                    ${airport.metar ? `<p class="mt-2 mb-1"><small><strong>METAR:</strong><br>${airport.metar.substring(0, 60)}...</small></p>` : '<p class="mt-2 mb-1"><small>Aucune donnée METAR</small></p>'}
+                    <a href="/detail/${airport.icao}" class="btn btn-primary btn-sm mt-2 w-100">Voir détails →</a>
+                </div>
+            `;
+            
+            // Ajouter le marqueur
+            const marker = L.marker([airport.lat, airport.lon], {icon: icon})
+                .bindPopup(popupContent)
+                .addTo(map);
+            
+            // Ouvrir les détails au clic
+            marker.on('click', function() {
+                // Le popup s'ouvre automatiquement
+            });
+        });
+        
+        // Fonction de rafraîchissement
+        function refreshData() {
+            fetch('/api/refresh', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                })
+                .catch(error => console.error('Erreur:', error));
+        }
+    </script>
+</body>
+</html>

@@ -65,6 +65,7 @@ class Airport:
     lat: float
     lon: float
     region: str
+    iata: str = ""  # Code IATA (3 lettres), optionnel
 
 
 @dataclass
@@ -144,7 +145,8 @@ def load_brittany_airports() -> list[Airport]:
                 name=row.get('name', '').strip(),
                 lat=lat,
                 lon=lon,
-                region=region
+                region=region,
+                iata=row.get('iata_code', '').strip()  # Code IATA depuis le CSV
             ))
     
     print(f"Found {len(airports)} ICAO airports in Brittany")
